@@ -21,6 +21,18 @@ const auth = firebase.auth();
 // Biến lưu thông tin user hiện tại
 var currentUser = null;
 var currentUserData = null;
+var sessionEpoch = 0;
+var settingsReady = false;
+var transactionsReady = false;
+var dataLoadError = '';
+
+function getSessionToken() {
+    return { uid: currentUser ? currentUser.uid : null, epoch: sessionEpoch };
+}
+
+function isSessionCurrent(token) {
+    return Boolean(token && currentUser && token.uid === currentUser.uid && token.epoch === sessionEpoch);
+}
 
 // DOM Elements cho Auth (sẽ được gán sau khi DOM load)
 var authScreen, appContent, loginForm, registerForm, authError, authSuccess, userEmailDisplay, logoutBtn;
@@ -126,27 +138,33 @@ function setupPasswordToggle(toggleBtnId, inputId) {
 }
 
 // Tạo dữ liệu mặc định cho user mới
-function createDefaultUserData(userId, displayName, email) {
-    var userDocRef = db.collection('users').doc(userId);
-    
-    // Tạo profile
-    userDocRef.set({
-        displayName: displayName,
-        email: email,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    // Tạo settings mặc định
-    userDocRef.collection('settings').doc('appData').set({
+function getDefaultSettings() {
+    return {
         categories: ["Ăn uống", "Lương", "Đi lại", "Mua sắm", "Tiền nhà", "Giải trí", "Y tế", "Giáo dục"],
         sources: ["Tiền mặt", "Thẻ ATM", "Chuyển khoản", "Ví điện tử"],
         wallets: [
             { id: 'chung', icon: '🏠', name: 'Ví Chung' },
             { id: 'canhan', icon: '👤', name: 'Cá Nhân' }
         ]
+    };
+}
+
+function createDefaultUserData(userId, displayName, email) {
+    var userDocRef = db.collection('users').doc(userId);
+    var settingsDoc = userDocRef.collection('settings').doc('appData');
+    // Registration and the first snapshot can race; only create missing documents.
+    return db.runTransaction(async function(transaction) {
+        var profile = await transaction.get(userDocRef);
+        var settings = await transaction.get(settingsDoc);
+        if (!profile.exists) {
+            transaction.set(userDocRef, {
+                displayName: displayName,
+                email: email,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        if (!settings.exists) transaction.set(settingsDoc, getDefaultSettings());
     });
-    
-    console.log('✅ Đã tạo dữ liệu mặc định cho user mới!');
 }
 
 // === CHỨC NĂNG DI CHUYỂN DỮ LIỆU CŨ ===
@@ -168,6 +186,7 @@ function migrateOldData() {
     }
     
     isMigrating = true;
+    var migrationSession = getSessionToken();
     console.log('🔄 Bắt đầu di chuyển dữ liệu cũ...');
     
     var oldTransactionsCol = db.collection('transactions');
@@ -178,6 +197,7 @@ function migrateOldData() {
     
     // 1. Di chuyển Settings trước
     oldSettingsDoc.get().then(function(docSnap) {
+        if (!isSessionCurrent(migrationSession)) throw new Error('Session changed');
         if (docSnap.exists) {
             var oldSettings = docSnap.data();
             console.log('📋 Tìm thấy settings cũ:', oldSettings);
@@ -191,9 +211,11 @@ function migrateOldData() {
             return Promise.resolve();
         }
     }).then(function() {
+        if (!isSessionCurrent(migrationSession)) throw new Error('Session changed');
         // 2. Di chuyển Transactions
         return oldTransactionsCol.get();
     }).then(function(snapshot) {
+        if (!isSessionCurrent(migrationSession)) throw new Error('Session changed');
         if (snapshot.empty) {
             console.log('⚠️ Không tìm thấy giao dịch cũ');
             return Promise.resolve();
@@ -228,6 +250,7 @@ function migrateOldData() {
         
         return Promise.all(batchPromises);
     }).then(function() {
+        if (!isSessionCurrent(migrationSession)) return;
         isMigrating = false;
         var message = '✅ Di chuyển dữ liệu thành công!\n\n' +
             '📊 Đã di chuyển ' + migratedTransactions + ' giao dịch.\n\n' +
@@ -238,6 +261,7 @@ function migrateOldData() {
         // Reload để cập nhật giao diện
         location.reload();
     }).catch(function(error) {
+        if (!isSessionCurrent(migrationSession)) return;
         isMigrating = false;
         console.error('❌ Lỗi khi di chuyển dữ liệu:', error);
         alert('❌ Có lỗi xảy ra khi di chuyển dữ liệu!\n\n' + error.message);
@@ -395,8 +419,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     return userCredential.user.updateProfile({
                         displayName: displayName
                     }).then(function() {
-                        // Tạo dữ liệu mặc định cho user
-                        createDefaultUserData(userCredential.user.uid, displayName, email);
+                        return createDefaultUserData(userCredential.user.uid, displayName, email);
+                    }).then(function() {
                         showAuthSuccess('✅ Đăng ký thành công! Đang đăng nhập...');
                     });
                 })
@@ -424,14 +448,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 auth.signOut()
                     .then(function() {
                         console.log('✅ Đã đăng xuất!');
-                        // Reset app state
-                        appInitialized = false;
-                        currentUser = null;
-                        currentUserData = null;
-                        transactions = [];
-                        categories = [];
-                        sources = [];
-                        wallets = [];
                     })
                     .catch(function(error) {
                         console.error('Lỗi khi đăng xuất:', error);
@@ -443,7 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Lắng nghe trạng thái đăng nhập
-auth.onAuthStateChanged(function(user) {
+function handleAuthStateChanged(user) {
     // Đợi DOM sẵn sàng
     if (!authScreen) {
         authScreen = document.getElementById('auth-screen');
@@ -451,17 +467,27 @@ auth.onAuthStateChanged(function(user) {
         userEmailDisplay = document.getElementById('user-email');
     }
     
-    if (user) {
-        // Lưu thông tin user
+    var nextUid = user ? user.uid : null;
+    if (authStateApplied && (currentUser ? currentUser.uid : null) === nextUid) {
         currentUser = user;
-        
+        return;
+    }
+    authStateApplied = true;
+    // Invalidate queued snapshots and pending writes before clearing the old UI.
+    sessionEpoch += 1;
+    teardownRealtimeListeners();
+    currentUser = null;
+    resetSessionState();
+    currentUser = user;
+
+    if (user) {
         // Đã đăng nhập - hiển thị app
         if (authScreen) authScreen.style.display = 'none';
         if (appContent) appContent.style.display = 'block';
         
         // Hiển thị tên người dùng
         if (userEmailDisplay) {
-            var displayName = user.displayName || user.email.split('@')[0];
+            var displayName = user.displayName || (user.email || '').split('@')[0];
             userEmailDisplay.textContent = '👤 ' + displayName;
         }
         
@@ -469,17 +495,106 @@ auth.onAuthStateChanged(function(user) {
         initializeApp();
     } else {
         // Chưa đăng nhập - hiển thị màn hình đăng nhập
-        currentUser = null;
         if (authScreen) authScreen.style.display = 'flex';
         if (appContent) appContent.style.display = 'none';
     }
-});
+    updateAppReadiness();
+}
+
+var authStateApplied = false;
+function subscribeToAuthState() {
+    auth.onAuthStateChanged(handleAuthStateChanged);
+}
+// All feature scripts must be loaded before cached auth can render the app.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', subscribeToAuthState, { once: true });
+} else {
+    subscribeToAuthState();
+}
 
 // Hàm khởi tạo app (chỉ chạy khi đã đăng nhập)
 var appInitialized = false;
+var appEventsBound = false;
+
+function resetSessionState() {
+    appInitialized = false;
+    currentUserData = null;
+    transactions = [];
+    categories = [];
+    sources = [];
+    wallets = [];
+    currentWallet = '';
+    selectedDate = null;
+    currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    settingsReady = false;
+    transactionsReady = false;
+    dataLoadError = '';
+    isMigrating = false;
+    if (typeof resetWalletUiState === 'function') resetWalletUiState();
+    if (typeof resetTransactionUiState === 'function') resetTransactionUiState();
+    document.querySelectorAll('#app-content form, .modal-overlay form').forEach(function(form) {
+        form.reset();
+        delete form.dataset.saving;
+        form.removeAttribute('aria-busy');
+    });
+    if (typeof resetReportsState === 'function') resetReportsState();
+    document.querySelectorAll('.modal-overlay').forEach(function(modal) {
+        if (typeof hideAppModal === 'function') hideAppModal(modal.id, false);
+        else modal.style.display = 'none';
+    });
+    ['wallet-tabs', 'wallet', 'category', 'source', 'category-list', 'source-list',
+        'transaction-list', 'selected-date-summary', 'selected-date-text',
+        'edit-category', 'edit-source'].forEach(function(id) {
+        var element = document.getElementById(id);
+        if (element) element.replaceChildren();
+    });
+    ['edit-wallet-id', 'edit-transaction-id'].forEach(function(id) {
+        var element = document.getElementById(id);
+        if (element) element.value = '';
+    });
+    if (userEmailDisplay) userEmailDisplay.textContent = '';
+    var status = document.getElementById('app-status');
+    if (status) {
+        status.textContent = '';
+        status.hidden = true;
+        delete status.dataset.state;
+    }
+    if (currentWalletNameEl) currentWalletNameEl.textContent = 'Đang xem: ---';
+    var detailSection = document.getElementById('transaction-detail-section');
+    if (detailSection) detailSection.style.display = 'none';
+    calculateSummary();
+    renderCalendar();
+}
+
+function updateAppReadiness() {
+    var ready = Boolean(currentUser && settingsReady && transactionsReady);
+    var status = document.getElementById('app-status');
+    if (status) {
+        if (!currentUser) {
+            status.textContent = '';
+            delete status.dataset.state;
+        } else if (dataLoadError) {
+            status.textContent = dataLoadError;
+            status.dataset.state = 'error';
+        } else if (!ready) {
+            status.textContent = 'Đang tải dữ liệu tài khoản...';
+            status.dataset.state = 'loading';
+        } else if (status.dataset.state === 'loading' || status.dataset.state === 'error') {
+            status.textContent = '';
+            delete status.dataset.state;
+        }
+        status.hidden = !status.textContent;
+    }
+    document.querySelectorAll('#app-content form, .modal-overlay form').forEach(function(form) {
+        var saving = form.dataset.saving === 'true';
+        form.querySelectorAll('input, select, textarea, button').forEach(function(control) {
+            control.disabled = !ready || saving;
+        });
+    });
+}
 
 function initializeApp() {
-    if (appInitialized) return; // Tránh khởi tạo nhiều lần
+    if (appInitialized || !currentUser) return;
     appInitialized = true;
     
     // Lắng nghe dữ liệu từ Firebase
@@ -491,15 +606,13 @@ function initializeApp() {
     // Khởi tạo date picker
     initDatePicker();
     
-    // Sự kiện chuyển tháng (Calendar)
-    document.getElementById('prev-month').addEventListener('click', function() { changeMonth(-1); });
-    document.getElementById('next-month').addEventListener('click', function() { changeMonth(1); });
-    
-    // Sự kiện đóng chi tiết ngày
-    document.getElementById('close-date-detail').addEventListener('click', function() { closeDateDetail(); });
-
-    // Thêm event listeners cho các form
-    setupEventListeners();
+    if (!appEventsBound) {
+        appEventsBound = true;
+        document.getElementById('prev-month').addEventListener('click', function() { changeMonth(-1); });
+        document.getElementById('next-month').addEventListener('click', function() { changeMonth(1); });
+        document.getElementById('close-date-detail').addEventListener('click', closeDateDetail);
+        setupEventListeners();
+    }
 }
 
 // Tham chiếu đến collections và documents (THEO USER)
@@ -616,7 +729,9 @@ function setSelectedDate(dateStr) {
         var month = parseInt(parts[1]);
         var day = parseInt(parts[2]);
         
-        document.getElementById('date-year').value = year;
+        var yearSelect = document.getElementById('date-year');
+        if (typeof ensureDateYearOption === 'function') ensureDateYearOption(yearSelect, year);
+        yearSelect.value = year;
         document.getElementById('date-month').value = month;
         updateDaysInMonth();
         document.getElementById('date-day').value = day;
@@ -647,30 +762,37 @@ function setupEventListeners() {
 var transactionsUnsubscribe = null;
 var settingsUnsubscribe = null;
 
-function setupRealtimeListeners() {
-    // Hủy listeners cũ nếu có
+function teardownRealtimeListeners() {
     if (transactionsUnsubscribe) transactionsUnsubscribe();
     if (settingsUnsubscribe) settingsUnsubscribe();
-    
-    var transactionsCol = getUserTransactionsCol();
-    var settingsDoc = getUserSettingsDoc();
-    
-    if (!transactionsCol || !settingsDoc) {
-        console.error('❌ Không thể thiết lập listeners - user chưa đăng nhập');
-        return;
-    }
+    transactionsUnsubscribe = null;
+    settingsUnsubscribe = null;
+}
+
+function setupRealtimeListeners() {
+    teardownRealtimeListeners();
+    var token = getSessionToken();
+    if (!token.uid) return;
+    var userDoc = db.collection('users').doc(token.uid);
+    var transactionsCol = userDoc.collection('transactions');
+    var settingsDoc = userDoc.collection('settings').doc('appData');
+    var creatingSettings = false;
     
     // 1. Lắng nghe Dữ liệu Giao Dịch
     transactionsUnsubscribe = transactionsCol.onSnapshot(function(snapshot) {
+        if (!isSessionCurrent(token)) return;
         transactions = [];
         snapshot.forEach(function(doc) {
             var data = doc.data();
             // Nếu giao dịch cũ không có wallet, gán mặc định
-            if (!data.wallet) {
+            if (data.wallet === undefined || data.wallet === null) {
                 data.wallet = 'chung';
             }
-            transactions.push({ id: doc.id, ...data }); 
+            transactions.push({ ...data, id: doc.id });
         });
+        transactionsReady = true;
+        if (settingsReady) dataLoadError = '';
+        updateAppReadiness();
         // Sau khi tải xong, vẽ lại giao diện
         calculateSummary();
         renderCalendar();
@@ -679,28 +801,42 @@ function setupRealtimeListeners() {
             renderTransactionsForDate(selectedDate);
         }
     }, function(error) {
+        if (!isSessionCurrent(token)) return;
+        transactionsReady = false;
+        dataLoadError = 'Không tải được giao dịch. Vui lòng kiểm tra kết nối/quyền truy cập và tải lại trang.';
+        updateAppReadiness();
         console.error('❌ Lỗi khi lắng nghe transactions:', error);
     });
 
     // 2. Lắng nghe Dữ liệu Cài Đặt (Danh mục/Nguồn/Ví)
     settingsUnsubscribe = settingsDoc.onSnapshot(function(docSnap) {
+        if (!isSessionCurrent(token)) return;
         if (docSnap.exists) {
             var data = docSnap.data();
-            categories = data.categories || [];
-            sources = data.sources || [];
-            wallets = data.wallets || [
+            categories = Array.isArray(data.categories) ? data.categories : [];
+            sources = Array.isArray(data.sources) ? data.sources : [];
+            wallets = Array.isArray(data.wallets) ? data.wallets : [
                 { id: 'chung', icon: '🏠', name: 'Ví Chung' }
             ];
-            
-            // Nếu chưa có ví được chọn, chọn ví đầu tiên
-            if (!currentWallet && wallets.length > 0) {
-                currentWallet = wallets[0].id;
+            if (!wallets.some(function(wallet) { return wallet.id === currentWallet; })) {
+                currentWallet = wallets.length ? wallets[0].id : '';
             }
-            
+            var previousCategory = categorySelect.value;
+            var previousSource = sourceSelect.value;
+            var previousWallet = walletSelect.value;
+            var walletBeforeRender = currentWallet;
             updateSelectOptions();
             renderTags();
             renderWalletTabs();
             renderWalletSelect();
+            if (categories.includes(previousCategory)) categorySelect.value = previousCategory;
+            if (sources.includes(previousSource)) sourceSelect.value = previousSource;
+            if (currentWallet === walletBeforeRender && wallets.some(function(wallet) { return wallet.id === previousWallet; })) {
+                walletSelect.value = previousWallet;
+            }
+            settingsReady = true;
+            if (transactionsReady) dataLoadError = '';
+            updateAppReadiness();
             
             // Render lại khi có thay đổi
             calculateSummary();
@@ -710,18 +846,28 @@ function setupRealtimeListeners() {
                 renderTransactionsForDate(selectedDate);
             }
         } else {
-            // Lần đầu tiên chạy với user này, tạo dữ liệu mặc định
-            console.log('📝 Đang tạo settings mặc định cho user...');
-            settingsDoc.set({
-                categories: ["Ăn uống", "Lương", "Đi lại", "Mua sắm", "Tiền nhà", "Giải trí", "Y tế", "Giáo dục"],
-                sources: ["Tiền mặt", "Thẻ ATM", "Chuyển khoản", "Ví điện tử"],
-                wallets: [
-                    { id: 'chung', icon: '🏠', name: 'Ví Chung' },
-                    { id: 'canhan', icon: '👤', name: 'Cá Nhân' }
-                ]
+            settingsReady = false;
+            updateAppReadiness();
+            if (creatingSettings) return;
+            creatingSettings = true;
+            db.runTransaction(async function(transaction) {
+                var existing = await transaction.get(settingsDoc);
+                if (!isSessionCurrent(token)) throw new Error('Session changed');
+                if (!existing.exists) transaction.set(settingsDoc, getDefaultSettings());
+            }).catch(function(error) {
+                if (!isSessionCurrent(token)) return;
+                dataLoadError = 'Không tạo được cài đặt tài khoản. Vui lòng kiểm tra kết nối/quyền truy cập và tải lại trang.';
+                updateAppReadiness();
+                console.error('Không tạo được cài đặt mặc định:', error);
+            }).finally(function() {
+                creatingSettings = false;
             });
         }
     }, function(error) {
+        if (!isSessionCurrent(token)) return;
+        settingsReady = false;
+        dataLoadError = 'Không tải được cài đặt. Vui lòng kiểm tra kết nối/quyền truy cập và tải lại trang.';
+        updateAppReadiness();
         console.error('❌ Lỗi khi lắng nghe settings:', error);
     });
 }
@@ -731,47 +877,48 @@ function setupRealtimeListeners() {
 
 // Render các tab ví
 function renderWalletTabs() {
-    walletTabsContainer.innerHTML = '';
-    
+    if (pendingWalletSelection && isSessionCurrent(pendingWalletSelection.token) &&
+        wallets.some(function(w) { return w.id === pendingWalletSelection.id; })) {
+        currentWallet = pendingWalletSelection.id;
+        pendingWalletSelection = null;
+    }
+    var focused = document.activeElement;
+    var focusedItem = focused && focused.closest('.wallet-item');
+    var focusId = focusedItem && focusedItem.dataset.wallet;
+    var focusAction = focused && focused.dataset.action;
+    if (typeof cancelWalletDrag === 'function') cancelWalletDrag();
+    walletTabsContainer.replaceChildren();
     wallets.forEach(function(wallet) {
+        var item = document.createElement('div');
+        item.className = 'wallet-item' + (wallet.id === currentWallet ? ' active' : '');
+        item.dataset.wallet = wallet.id;
+        item.setAttribute('role', 'listitem');
         var tab = document.createElement('button');
+        tab.type = 'button';
         tab.className = 'wallet-tab' + (wallet.id === currentWallet ? ' active' : '');
         tab.setAttribute('data-wallet', wallet.id);
-        tab.innerHTML = wallet.icon + ' ' + wallet.name + 
-            '<span class="edit-wallet" data-wallet-id="' + wallet.id + '" title="Sửa ví">✏️</span>' +
-            '<span class="delete-wallet" data-wallet-id="' + wallet.id + '" title="Xóa ví">×</span>';
-        
-        // Click vào tab để chọn ví
-        tab.addEventListener('click', function(e) {
-            if (e.target.classList.contains('delete-wallet') || e.target.classList.contains('edit-wallet')) {
-                return; // Bỏ qua nếu click vào nút xóa hoặc sửa
-            }
+        tab.dataset.action = 'select';
+        tab.setAttribute('aria-pressed', String(wallet.id === currentWallet));
+        tab.textContent = wallet.icon + ' ' + wallet.name;
+        tab.addEventListener('click', function() {
             selectWallet(wallet.id);
         });
-        
-        walletTabsContainer.appendChild(tab);
+        item.appendChild(tab);
+        var handle = createWalletAction('wallet-drag-handle', '↔', 'Đổi vị trí ví ' + wallet.name, 'move');
+        handle.setAttribute('aria-describedby', 'wallet-reorder-help');
+        handle.addEventListener('pointerdown', function(event) { startWalletDrag(event, wallet.id); });
+        handle.addEventListener('keydown', function(event) { handleWalletMoveKey(event, wallet.id); });
+        item.appendChild(handle);
+        var edit = createWalletAction('edit-wallet', '✏️', 'Sửa ví ' + wallet.name, 'edit');
+        edit.addEventListener('click', function() { openEditWalletModal(wallet.id); });
+        item.appendChild(edit);
+        var remove = createWalletAction('delete-wallet', '×', 'Xóa ví ' + wallet.name, 'delete');
+        remove.addEventListener('click', function() { deleteWallet(wallet.id); });
+        item.appendChild(remove);
+        walletTabsContainer.appendChild(item);
     });
-    
-    // Thêm event listener cho nút sửa ví
-    document.querySelectorAll('.edit-wallet').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            var walletId = this.getAttribute('data-wallet-id');
-            openEditWalletModal(walletId);
-        });
-    });
-    
-    // Thêm event listener cho nút xóa ví
-    document.querySelectorAll('.delete-wallet').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            var walletId = this.getAttribute('data-wallet-id');
-            deleteWallet(walletId);
-        });
-    });
-    
-    // Cập nhật tên ví đang xem
     updateCurrentWalletDisplay();
+    if (focusId && focusAction) focusWalletAction(focusId, focusAction);
 }
 
 // Render dropdown chọn ví trong form
@@ -786,14 +933,19 @@ function renderWalletSelect() {
 
 // Chọn ví
 function selectWallet(walletId) {
+    if (!wallets.some(function(wallet) { return wallet.id === walletId; })) return;
     currentWallet = walletId;
     
     // Cập nhật UI tabs
     document.querySelectorAll('.wallet-tab').forEach(function(tab) {
         tab.classList.remove('active');
+        tab.setAttribute('aria-pressed', String(tab.getAttribute('data-wallet') === walletId));
         if (tab.getAttribute('data-wallet') === walletId) {
             tab.classList.add('active');
         }
+    });
+    document.querySelectorAll('.wallet-item').forEach(function(item) {
+        item.classList.toggle('active', item.dataset.wallet === walletId);
     });
     
     // Cập nhật dropdown
@@ -816,6 +968,8 @@ function updateCurrentWalletDisplay() {
     var wallet = wallets.find(function(w) { return w.id === currentWallet; });
     if (wallet) {
         currentWalletNameEl.textContent = 'Đang xem: ' + wallet.icon + ' ' + wallet.name;
+    } else {
+        currentWalletNameEl.textContent = 'Đang xem: ---';
     }
 }
 
@@ -829,7 +983,7 @@ function getWalletName(walletId) {
 }
 
 // Thêm ví mới
-function handleAddWallet(e) {
+async function handleAddWallet(e) {
     e.preventDefault();
     
     var icon = document.getElementById('new-wallet-icon').value.trim() || '💰';
@@ -840,31 +994,26 @@ function handleAddWallet(e) {
         return;
     }
     
-    // Tạo ID từ tên (loại bỏ dấu, chuyển thường, thay space bằng _)
-    var id = name.toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-        .replace(/\s+/g, '_')
-        .replace(/[^a-z0-9_]/g, '');
-    
-    // Kiểm tra trùng
-    if (wallets.some(function(w) { return w.id === id; })) {
-        alert('Ví này đã tồn tại!');
-        return;
-    }
-    
-    wallets.push({ id: id, icon: icon, name: name });
-    
-    // Tự động chọn ví mới vừa tạo để có thể thêm giao dịch ngay
-    currentWallet = id;
-    
-    updateSettings('wallets', wallets);
-    
-    e.target.reset();
+    if (!currentUser || !settingsReady) return;
+    var id = getUserTransactionsCol().doc().id;
+    var form = e.target;
+    await runSettingsAction(form, function() {
+        pendingWalletSelection = { id: id, token: getSessionToken() };
+        return mutateSettings(function(data) {
+            var latest = data.wallets || [];
+            if (latest.some(function(w) { return w.name.toLocaleLowerCase() === name.toLocaleLowerCase(); })) {
+                throw new Error('Tên ví này đã tồn tại.');
+            }
+            return { wallets: latest.concat({ id: id, icon: icon, name: name }) };
+        });
+    }, function() {
+        form.reset();
+        if (wallets.some(function(w) { return w.id === id; })) selectWallet(id);
+    });
 }
 
 // Xóa ví
-function deleteWallet(walletId) {
+async function deleteWallet(walletId) {
     if (wallets.length <= 1) {
         alert('Phải có ít nhất 1 ví!');
         return;
@@ -882,13 +1031,13 @@ function deleteWallet(walletId) {
     }
     
     if (confirm(confirmMsg)) {
-        wallets = wallets.filter(function(w) { return w.id !== walletId; });
-        updateSettings('wallets', wallets);
-        
-        // Nếu đang xem ví bị xóa, chuyển sang ví đầu tiên
-        if (currentWallet === walletId && wallets.length > 0) {
-            selectWallet(wallets[0].id);
-        }
+        await runSettingsAction(null, function() {
+            return mutateSettings(function(data) {
+                var latest = data.wallets || [];
+                if (latest.length <= 1) throw new Error('Phải có ít nhất 1 ví.');
+                return { wallets: latest.filter(function(w) { return w.id !== walletId; }) };
+            });
+        });
     }
 }
 
@@ -901,16 +1050,16 @@ function openEditWalletModal(walletId) {
     document.getElementById('edit-wallet-icon').value = wallet.icon;
     document.getElementById('edit-wallet-name').value = wallet.name;
     
-    document.getElementById('edit-wallet-modal').style.display = 'flex';
+    showAppModal('edit-wallet-modal');
 }
 
 // Đóng modal chỉnh sửa ví
 function closeEditWalletModal() {
-    document.getElementById('edit-wallet-modal').style.display = 'none';
+    hideAppModal('edit-wallet-modal');
 }
 
 // Xử lý lưu chỉnh sửa ví
-function handleEditWallet(e) {
+async function handleEditWallet(e) {
     e.preventDefault();
     
     var walletId = document.getElementById('edit-wallet-id').value;
@@ -922,16 +1071,17 @@ function handleEditWallet(e) {
         return;
     }
     
-    // Cập nhật ví trong danh sách
-    wallets = wallets.map(function(w) {
-        if (w.id === walletId) {
-            return { id: w.id, icon: newIcon, name: newName };
-        }
-        return w;
-    });
-    
-    updateSettings('wallets', wallets);
-    closeEditWalletModal();
+    await runSettingsAction(e.target, function() {
+        return mutateSettings(function(data) {
+            var latest = data.wallets || [];
+            if (!latest.some(function(w) { return w.id === walletId; })) {
+                throw new Error('Ví này đã bị xóa trên thiết bị khác.');
+            }
+            return { wallets: latest.map(function(w) {
+                return w.id === walletId ? Object.assign({}, w, { icon: newIcon, name: newName }) : w;
+            }) };
+        });
+    }, closeEditWalletModal);
 }
 
 
@@ -940,6 +1090,23 @@ function handleEditWallet(e) {
 // Đổi đơn vị tiền sang Won (KRW)
 function formatCurrency(amount) {
     return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount);
+}
+
+function localDateString(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+}
+
+function parseLocalDate(dateStr) {
+    var parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || '');
+    if (!parts) return null;
+    var date = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+    return localDateString(date) === dateStr ? date : null;
+}
+
+function ensureDateYearOption(select, year) {
+    if (!Array.from(select.options).some(function(option) { return Number(option.value) === year; })) {
+        select.add(new Option(String(year), String(year)));
+    }
 }
 
 // Lọc giao dịch theo ví hiện tại
@@ -972,6 +1139,7 @@ function calculateSummary() {
     } else {
         netBalanceCard.classList.remove('negative');
     }
+    if (typeof renderReports === 'function') renderReports();
 }
 
 // --- 10. LOGIC LỊCH SỬ GIAO DỊCH THEO NGÀY ---
@@ -980,7 +1148,8 @@ function selectDateForHistory(dateStr) {
     selectedDate = dateStr;
     
     // Hiển thị thông tin ngày đã chọn
-    var dateObj = new Date(dateStr);
+    var dateObj = parseLocalDate(dateStr);
+    if (!dateObj) return;
     var dayNames = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
     document.getElementById('selected-date-text').textContent = '📅 ' + dayNames[dateObj.getDay()] + ', ' + dateObj.getDate() + '/' + (dateObj.getMonth() + 1) + '/' + dateObj.getFullYear();
     
@@ -1052,85 +1221,112 @@ function renderTransactionsForDate(dateStr) {
     }
     
     dayTransactions.forEach(function(t) {
-        var card = document.createElement('div');
-        card.className = 'transaction-card ' + t.type;
-        
-        // Icon
-        var icon = document.createElement('div');
-        icon.className = 'transaction-icon';
-        icon.textContent = t.type === 'income' ? '💰' : '💸';
-        card.appendChild(icon);
-        
-        // Details
-        var details = document.createElement('div');
-        details.className = 'transaction-details';
-        
-        var desc = document.createElement('div');
-        desc.className = 'transaction-description';
-        desc.textContent = t.description;
-        details.appendChild(desc);
-        
-        var meta = document.createElement('div');
-        meta.className = 'transaction-meta';
-        meta.innerHTML = '<span>' + t.category + '</span><span>' + t.source + '</span>';
-        details.appendChild(meta);
-        
-        card.appendChild(details);
-        
-        // Amount
-        var amount = document.createElement('div');
-        amount.className = 'transaction-amount';
-        amount.textContent = (t.type === 'income' ? '+' : '-') + formatCurrency(t.amount);
-        card.appendChild(amount);
-        
-        // Action buttons
-        var actions = document.createElement('div');
-        actions.className = 'transaction-actions';
-        
-        // Edit button
-        var editBtn = document.createElement('button');
-        editBtn.className = 'edit-btn';
-        editBtn.textContent = 'Sửa';
-        editBtn.setAttribute('data-id', t.id);
-        editBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            var id = this.getAttribute('data-id');
-            openEditTransactionModal(id);
-        });
-        actions.appendChild(editBtn);
-        
-        // Delete button
-        var deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.textContent = 'Xóa';
-        deleteBtn.setAttribute('data-id', t.id);
-        deleteBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            var id = this.getAttribute('data-id');
-            if (confirm('Bạn có chắc muốn xóa giao dịch này?')) {
-                var transactionsCol = getUserTransactionsCol();
-                if (!transactionsCol) {
-                    alert("Lỗi: Vui lòng đăng nhập lại!");
-                    return;
-                }
-                transactionsCol.doc(id).delete()
-                    .then(function() {
-                        console.log('✅ Đã xóa thành công!');
-                    })
-                    .catch(function(error) {
-                        console.error("❌ Lỗi khi xóa giao dịch: ", error);
-                        alert("Lỗi khi xóa giao dịch.");
-                    });
-            }
-        });
-        actions.appendChild(deleteBtn);
-        card.appendChild(actions);
-        
-        list.appendChild(card);
+        list.appendChild(createTransactionCard(t, false));
     });
 }
 
+function createTransactionCard(transaction, includeDate) {
+    var session = getSessionToken();
+    var card = document.createElement('div');
+    card.className = 'transaction-card ' + (transaction.type === 'income' ? 'income' : 'expense');
+    var icon = document.createElement('div');
+    icon.className = 'transaction-icon';
+    icon.textContent = transaction.type === 'income' ? '💰' : '💸';
+    icon.setAttribute('aria-hidden', 'true');
+    card.appendChild(icon);
+
+    var details = document.createElement('div');
+    details.className = 'transaction-details';
+    var description = document.createElement('div');
+    description.className = 'transaction-description';
+    description.textContent = transaction.description || 'Không có mô tả';
+    details.appendChild(description);
+    var meta = document.createElement('div');
+    meta.className = 'transaction-meta';
+    var metadata = [transaction.category, transaction.source];
+    if (includeDate) metadata.unshift(transaction.date);
+    metadata.forEach(function(value) {
+        var span = document.createElement('span');
+        span.textContent = value || 'Chưa phân loại';
+        meta.appendChild(span);
+    });
+    details.appendChild(meta);
+    card.appendChild(details);
+    var amount = document.createElement('div');
+    amount.className = 'transaction-amount';
+    amount.textContent = (transaction.type === 'income' ? '+' : '-') + formatCurrency(transaction.amount);
+    card.appendChild(amount);
+
+    var actions = document.createElement('div');
+    actions.className = 'transaction-actions';
+    var editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'edit-btn';
+    editButton.dataset.transactionId = transaction.id;
+    editButton.textContent = 'Sửa';
+    editButton.setAttribute('aria-label', 'Sửa giao dịch ' + (transaction.description || transaction.date));
+    editButton.addEventListener('click', function() {
+        if (isSessionCurrent(session)) openEditTransactionModal(transaction.id);
+    });
+    actions.appendChild(editButton);
+    var deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'delete-btn';
+    deleteButton.textContent = 'Xóa';
+    deleteButton.setAttribute('aria-label', 'Xóa giao dịch ' + (transaction.description || transaction.date));
+    deleteButton.addEventListener('click', function() {
+        if (!isSessionCurrent(session) || deleteButton.disabled || !settingsReady || !transactionsReady) return;
+        if (!confirm('Bạn có chắc muốn xóa giao dịch này?')) return;
+        var collection = getUserTransactionsCol();
+        if (!collection) return;
+        deleteButton.disabled = true;
+        collection.doc(transaction.id).delete().catch(function(error) {
+            if (!isSessionCurrent(session)) return;
+            deleteButton.disabled = false;
+            console.error('Lỗi khi xóa giao dịch:', error);
+            alert('Không thể xóa giao dịch. Vui lòng thử lại.');
+        });
+    });
+    actions.appendChild(deleteButton);
+    card.appendChild(actions);
+    return card;
+}
+
 // --- MODAL CHỈNH SỬA GIAO DỊCH ---
+
+var transactionSaveState = { add: null, edit: null };
+var editTransactionSession = null;
+
+function setTransactionFormBusy(form, busy) {
+    if (busy) {
+        form.dataset.saving = 'true';
+        form.setAttribute('aria-busy', 'true');
+    } else {
+        delete form.dataset.saving;
+        form.removeAttribute('aria-busy');
+    }
+    Array.from(form.elements).forEach(function(control) { control.disabled = busy; });
+    if (!busy && typeof updateAppReadiness === 'function') updateAppReadiness();
+}
+
+function setTransactionStatus(id, message, isError) {
+    var status = document.getElementById(id);
+    if (!status) return;
+    status.textContent = message;
+    status.classList.toggle('error', !!isError);
+}
+
+function resetTransactionUiState() {
+    transactionSaveState.add = null;
+    transactionSaveState.edit = null;
+    editTransactionSession = null;
+    ['add-transaction-form', 'edit-transaction-form'].forEach(function(id) {
+        var form = document.getElementById(id);
+        if (form) setTransactionFormBusy(form, false);
+    });
+    setTransactionStatus('transaction-save-status', '', false);
+    setTransactionStatus('edit-transaction-status', '', false);
+}
 
 // Khởi tạo date picker cho modal edit
 function initEditDatePicker() {
@@ -1170,8 +1366,11 @@ function updateEditDaysInMonth() {
 
 // Mở modal chỉnh sửa giao dịch
 function openEditTransactionModal(transactionId) {
+    if (!settingsReady || !transactionsReady || transactionSaveState.edit) return;
     var transaction = transactions.find(function(t) { return t.id === transactionId; });
     if (!transaction) return;
+    editTransactionSession = getSessionToken();
+    setTransactionStatus('edit-transaction-status', '', false);
     
     // Khởi tạo date picker nếu chưa có
     if (document.getElementById('edit-date-year').options.length === 0) {
@@ -1181,45 +1380,55 @@ function openEditTransactionModal(transactionId) {
     // Cập nhật category và source options
     var editCategorySelect = document.getElementById('edit-category');
     var editSourceSelect = document.getElementById('edit-source');
+    editCategorySelect.required = Boolean(transaction.category);
+    editSourceSelect.required = Boolean(transaction.source);
     
     editCategorySelect.innerHTML = '';
     categories.forEach(function(cat) {
         var option = new Option(cat, cat);
         editCategorySelect.add(option);
     });
+    if (!categories.includes(transaction.category)) {
+        editCategorySelect.add(new Option((transaction.category || 'Chưa phân loại') + ' (đã lưu trước đây)', transaction.category || ''));
+    }
     
     editSourceSelect.innerHTML = '';
     sources.forEach(function(src) {
         var option = new Option(src, src);
         editSourceSelect.add(option);
     });
+    if (!sources.includes(transaction.source)) {
+        editSourceSelect.add(new Option((transaction.source || 'Chưa phân loại') + ' (đã lưu trước đây)', transaction.source || ''));
+    }
     
     // Điền dữ liệu vào form
     document.getElementById('edit-transaction-id').value = transactionId;
     document.getElementById('edit-type').value = transaction.type;
     document.getElementById('edit-amount').value = transaction.amount;
     document.getElementById('edit-description').value = transaction.description;
-    document.getElementById('edit-category').value = transaction.category;
-    document.getElementById('edit-source').value = transaction.source;
+    document.getElementById('edit-category').value = transaction.category || '';
+    document.getElementById('edit-source').value = transaction.source || '';
     
     // Điền ngày
     var dateParts = transaction.date.split('-');
+    ensureDateYearOption(document.getElementById('edit-date-year'), Number(dateParts[0]));
     document.getElementById('edit-date-year').value = parseInt(dateParts[0]);
     document.getElementById('edit-date-month').value = parseInt(dateParts[1]);
     updateEditDaysInMonth();
     document.getElementById('edit-date-day').value = parseInt(dateParts[2]);
     
-    document.getElementById('edit-transaction-modal').style.display = 'flex';
+    showAppModal('edit-transaction-modal');
 }
 
 // Đóng modal chỉnh sửa giao dịch
 function closeEditTransactionModal() {
-    document.getElementById('edit-transaction-modal').style.display = 'none';
+    hideAppModal('edit-transaction-modal');
 }
 
 // Xử lý lưu chỉnh sửa giao dịch
-function handleEditTransaction(e) {
+async function handleEditTransaction(e) {
     e.preventDefault();
+    if (transactionSaveState.edit || !settingsReady || !transactionsReady || !isSessionCurrent(editTransactionSession)) return;
     
     var transactionsCol = getUserTransactionsCol();
     if (!transactionsCol) {
@@ -1243,20 +1452,33 @@ function handleEditTransaction(e) {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     
-    if (isNaN(updatedData.amount) || updatedData.amount <= 0) {
+    if (!Number.isFinite(updatedData.amount) || updatedData.amount <= 0) {
         alert("Số tiền không hợp lệ!");
         return;
     }
-    
-    transactionsCol.doc(transactionId).update(updatedData)
-        .then(function() {
-            console.log('✅ Đã cập nhật giao dịch thành công!');
-            closeEditTransactionModal();
-        })
-        .catch(function(error) {
-            console.error("❌ Lỗi khi cập nhật giao dịch: ", error);
-            alert("Lỗi khi cập nhật giao dịch.");
-        });
+    if (!parseLocalDate(dateStr)) {
+        setTransactionStatus('edit-transaction-status', 'Ngày giao dịch không hợp lệ.', true);
+        return;
+    }
+    var session = getSessionToken();
+    transactionSaveState.edit = session;
+    setTransactionFormBusy(e.target, true);
+    setTransactionStatus('edit-transaction-status', 'Đang lưu thay đổi...', false);
+    try {
+        await transactionsCol.doc(transactionId).update(updatedData);
+        if (!isSessionCurrent(session)) return;
+        closeEditTransactionModal();
+        setTransactionStatus('edit-transaction-status', '', false);
+    } catch (error) {
+        if (!isSessionCurrent(session)) return;
+        console.error('Lỗi khi cập nhật giao dịch:', error);
+        setTransactionStatus('edit-transaction-status', 'Chưa lưu được thay đổi. Dữ liệu vẫn được giữ để bạn thử lại.', true);
+    } finally {
+        if (isSessionCurrent(session) && transactionSaveState.edit === session) {
+            transactionSaveState.edit = null;
+            setTransactionFormBusy(e.target, false);
+        }
+    }
 }
 
 function closeDateDetail() {
@@ -1270,17 +1492,27 @@ function closeDateDetail() {
 }
 
 function updateSelectOptions() {
+    var selectedCategory = categorySelect.value;
+    var selectedSource = sourceSelect.value;
     categorySelect.innerHTML = '';
     categories.forEach(function(cat) {
         var option = new Option(cat, cat);
         categorySelect.add(option);
     });
+    if (selectedCategory) {
+        if (!categories.includes(selectedCategory)) categorySelect.add(new Option(selectedCategory + ' (đã chọn)', selectedCategory));
+        categorySelect.value = selectedCategory;
+    }
 
     sourceSelect.innerHTML = '';
     sources.forEach(function(src) {
         var option = new Option(src, src);
         sourceSelect.add(option);
     });
+    if (selectedSource) {
+        if (!sources.includes(selectedSource)) sourceSelect.add(new Option(selectedSource + ' (đã chọn)', selectedSource));
+        sourceSelect.value = selectedSource;
+    }
 }
 
 function renderTags() {
@@ -1301,9 +1533,11 @@ function renderTags() {
 function createTagElement(name, type) {
     var tag = document.createElement('span');
     tag.textContent = name;
-    var removeButton = document.createElement('span');
+    var removeButton = document.createElement('button');
+    removeButton.type = 'button';
     removeButton.textContent = 'x';
     removeButton.className = 'remove-tag';
+    removeButton.setAttribute('aria-label', 'Xóa ' + name);
     removeButton.setAttribute('data-name', name);
     removeButton.setAttribute('data-type', type);
     removeButton.addEventListener('click', function() {
@@ -1311,11 +1545,9 @@ function createTagElement(name, type) {
         var tagType = this.getAttribute('data-type');
         if (confirm('Bạn có chắc muốn xóa "' + tagName + '"?')) {
             if (tagType === 'category') {
-                var updatedCategories = categories.filter(function(c) { return c !== tagName; });
-                updateSettings('categories', updatedCategories);
+                removeSettingValue('categories', tagName);
             } else {
-                var updatedSources = sources.filter(function(s) { return s !== tagName; });
-                updateSettings('sources', updatedSources); 
+                removeSettingValue('sources', tagName);
             }
         }
     });
@@ -1326,8 +1558,9 @@ function createTagElement(name, type) {
 
 // --- 8. LOGIC THÊM / XÓA GIAO DỊCH ---
 
-function handleAddTransaction(e) {
+async function handleAddTransaction(e) {
     e.preventDefault();
+    if (transactionSaveState.add || !settingsReady || !transactionsReady) return;
     
     var transactionsCol = getUserTransactionsCol();
     if (!transactionsCol) {
@@ -1346,80 +1579,72 @@ function handleAddTransaction(e) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     
-    if (isNaN(newTransaction.amount) || newTransaction.amount <= 0) {
+    if (!Number.isFinite(newTransaction.amount) || newTransaction.amount <= 0) {
         alert("Số tiền không hợp lệ!");
         return;
     }
-
-    transactionsCol.add(newTransaction)
-        .then(function() {
-            console.log('✅ Đã thêm giao dịch thành công!');
-        })
-        .catch(function(error) {
-            console.error("❌ Lỗi khi ghi giao dịch: ", error);
-            alert("Lỗi khi ghi dữ liệu. Kiểm tra kết nối.");
-        });
-
-    e.target.reset(); 
-    initDatePicker(); // Reset date picker về ngày hiện tại
-    document.getElementById('wallet').value = currentWallet;
-}
-
-function updateSettings(field, newArray) {
-    var settingsDoc = getUserSettingsDoc();
-    if (!settingsDoc) {
-        console.error('❌ Không thể cập nhật settings - user chưa đăng nhập');
+    if (!parseLocalDate(newTransaction.date) || !wallets.some(function(wallet) { return wallet.id === newTransaction.wallet; })) {
+        setTransactionStatus('transaction-save-status', 'Vui lòng chọn ngày và ví hợp lệ.', true);
         return;
     }
-    
-    var updateData = {};
-    updateData[field] = newArray;
-    settingsDoc.update(updateData)
-        .catch(function(error) { console.error('❌ Lỗi khi cập nhật ' + field + ': ', error); });
+    var session = getSessionToken();
+    transactionSaveState.add = session;
+    setTransactionFormBusy(e.target, true);
+    setTransactionStatus('transaction-save-status', 'Đang lưu giao dịch. Vui lòng đợi xác nhận...', false);
+    try {
+        await transactionsCol.add(newTransaction);
+        if (!isSessionCurrent(session)) return;
+        e.target.reset();
+        initDatePicker();
+        document.getElementById('wallet').value = currentWallet;
+        setTransactionStatus('transaction-save-status', 'Đã lưu giao dịch thành công.', false);
+    } catch (error) {
+        if (!isSessionCurrent(session)) return;
+        console.error('Lỗi khi ghi giao dịch:', error);
+        setTransactionStatus('transaction-save-status', 'Chưa lưu được giao dịch. Dữ liệu vẫn được giữ để bạn thử lại.', true);
+    } finally {
+        if (isSessionCurrent(session) && transactionSaveState.add === session) {
+            transactionSaveState.add = null;
+            setTransactionFormBusy(e.target, false);
+        }
+    }
 }
 
-function handleAddCategory(e) {
+async function handleAddCategory(e) {
     e.preventDefault();
     var newCat = document.getElementById('new-category').value.trim();
-    if (newCat && !categories.includes(newCat)) {
-        categories.push(newCat);
-        updateSettings('categories', categories); 
-        e.target.reset();
-    }
+    if (newCat) await addSettingValue('categories', newCat, e.target);
 }
 
-function handleAddSource(e) {
+async function handleAddSource(e) {
     e.preventDefault();
     var newSrc = document.getElementById('new-source').value.trim();
-    if (newSrc && !sources.includes(newSrc)) {
-        sources.push(newSrc);
-        updateSettings('sources', sources);
-        e.target.reset();
-    }
+    if (newSrc) await addSettingValue('sources', newSrc, e.target);
 }
 
 
 // --- 9. LOGIC LỊCH THÁNG ---
 
 function changeMonth(step) {
-    currentMonth.setMonth(currentMonth.getMonth() + step);
+    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + step, 1);
     renderCalendar();
 }
 
 function renderCalendar() {
     var year = currentMonth.getFullYear();
     var month = currentMonth.getMonth();
+    var focusedDate = calendarGrid.contains(document.activeElement) ? document.activeElement.getAttribute('data-date') : null;
 
     currentMonthDisplay.textContent = 'Tháng ' + (month + 1) + ' Năm ' + year;
 
     var dailySummary = {};
     var currentMonthTransactions = getFilteredTransactions().filter(function(t) {
-        var tDate = new Date(t.date);
-        return tDate.getFullYear() === year && tDate.getMonth() === month;
+        var tDate = parseLocalDate(t.date);
+        return tDate && tDate.getFullYear() === year && tDate.getMonth() === month;
     });
 
     currentMonthTransactions.forEach(function(t) {
-        var day = new Date(t.date).getDate();
+        var day = parseLocalDate(t.date).getDate();
         if (!dailySummary[day]) {
             dailySummary[day] = { income: 0, expense: 0 };
         }
@@ -1446,17 +1671,22 @@ function renderCalendar() {
     for (var i = 0; i < firstDayOfMonth; i++) {
         var emptyDay = document.createElement('div');
         emptyDay.className = 'calendar-day';
+        emptyDay.setAttribute('aria-hidden', 'true');
         calendarGrid.appendChild(emptyDay);
     }
 
     for (var day = 1; day <= daysInMonth; day++) {
-        var dayElement = document.createElement('div');
+        var dayElement = document.createElement('button');
+        dayElement.type = 'button';
         dayElement.className = 'calendar-day current-month';
+        var dateStr = localDateString(new Date(year, month, day));
+        dayElement.setAttribute('data-date', dateStr);
+        dayElement.setAttribute('aria-pressed', selectedDate === dateStr ? 'true' : 'false');
+        var accessibleLabel = 'Ngày ' + day + '/' + (month + 1) + '/' + year;
         
         // Đánh dấu ngày đang được chọn
         if (selectedDate) {
-            var selDate = new Date(selectedDate);
-            if (selDate.getFullYear() === year && selDate.getMonth() === month && selDate.getDate() === day) {
+            if (selectedDate === dateStr) {
                 dayElement.classList.add('selected');
             }
         }
@@ -1474,6 +1704,7 @@ function renderCalendar() {
                 incomeSpan.className = 'day-income';
                 incomeSpan.textContent = '+' + formatCurrency(summary.income);
                 dayElement.appendChild(incomeSpan);
+                accessibleLabel += ', thu ' + formatCurrency(summary.income);
             }
 
             if (summary.expense > 0) {
@@ -1481,11 +1712,13 @@ function renderCalendar() {
                 expenseSpan.className = 'day-expense';
                 expenseSpan.textContent = '-' + formatCurrency(summary.expense);
                 dayElement.appendChild(expenseSpan);
+                accessibleLabel += ', chi ' + formatCurrency(summary.expense);
             }
         }
         
         // Thêm style clickable
         dayElement.style.cursor = 'pointer';
+        dayElement.setAttribute('aria-label', accessibleLabel);
         
         // Click vào ngày để xem chi tiết giao dịch
         (function(d, y, m) {
@@ -1496,5 +1729,6 @@ function renderCalendar() {
         })(day, year, month);
         
         calendarGrid.appendChild(dayElement);
+        if (focusedDate === dateStr) dayElement.focus({ preventScroll: true });
     }
 }

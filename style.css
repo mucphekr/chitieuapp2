@@ -16,14 +16,16 @@
     --accent-peach: #ffcdb2;
     --accent-yellow: #ffd670;
     --text-primary: #5c4d4d;
-    --text-secondary: #8b7e7e;
-    --text-muted: #b8a9a9;
-    --income-color: #65c987;
+    --text-secondary: #6f5d62;
+    --text-muted: #786970;
+    --income-color: #236c40;
     --income-bg: #e8f8ed;
-    --expense-color: #ff7c98;
+    --expense-color: #ac294b;
     --expense-bg: #fff0f3;
     --border-color: #f5e6e8;
     --shadow-soft: rgba(255, 143, 171, 0.15);
+    --heading-color: #a13558;
+    --focus-color: #7b2850;
 }
 
 body {
@@ -1489,7 +1491,15 @@ select:focus-visible {
 }
 
 .checkbox-label input[type="checkbox"] {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
 }
 
 .checkmark {
@@ -1645,5 +1655,562 @@ header {
     
     #user-email {
         max-width: 200px;
+    }
+}
+
+/* Accessible controls retain the app's pastel surfaces. */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+button, input, select, textarea {
+    font-family: inherit;
+}
+
+button, input:not([type="hidden"]):not([type="checkbox"]), select {
+    min-height: 44px;
+}
+
+input, select, .control-container > div {
+    min-width: 0;
+}
+
+button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+    transform: none;
+    animation: none;
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible,
+a:focus-visible, [tabindex]:focus-visible {
+    outline: 3px solid var(--focus-color);
+    outline-offset: 3px;
+}
+
+.checkbox-label input:focus-visible + .checkmark {
+    outline: 3px solid var(--focus-color);
+    outline-offset: 3px;
+}
+
+.checkbox-label {
+    min-height: 44px;
+}
+
+.checkmark {
+    flex-shrink: 0;
+}
+
+.checkmark::after {
+    color: var(--text-primary);
+}
+
+header, footer, .auth-header, .modal-header, .selected-date-info,
+.day-header, .login-btn, .register-btn, .submit-btn, .btn-save,
+.close-btn, .modal-close, .logout-btn, .migrate-btn, #user-email,
+#add-wallet-form button, #add-category-form button, #add-source-form button,
+.tag-list span {
+    color: var(--text-primary);
+}
+
+h2, .wallet-section h2, .calendar-controls h3, .calendar-controls button,
+.forgot-password a, .auth-switch a {
+    color: var(--heading-color);
+}
+
+.calendar-section h2 {
+    color: #875513;
+}
+
+.input-section h2, .net-balance p, .edit-btn {
+    color: #625099;
+}
+
+.edit-btn:hover, .delete-btn:hover, .calendar-controls button:hover,
+.forgot-password a:hover {
+    color: var(--text-primary);
+}
+
+.section-caption, .wallet-reorder-help {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin: -4px 0 14px;
+}
+
+.app-status, .form-status, .report-status {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    overflow-wrap: anywhere;
+}
+
+.app-status:empty, .form-status:empty, .report-status:empty {
+    margin: 0;
+    padding: 0;
+}
+
+.app-status:not(:empty) {
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid var(--accent-pink-light);
+}
+
+.status-error, .form-status.error, .report-status.error {
+    color: var(--expense-color);
+}
+
+body.modal-open {
+    overflow: hidden;
+}
+
+.auth-overlay {
+    overflow-y: auto;
+    align-items: flex-start;
+}
+
+.auth-container {
+    flex-shrink: 0;
+    margin: auto;
+}
+
+.auth-form input[type="email"], .auth-form input[type="password"] {
+    width: 100%;
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 16px 24px 0;
+}
+
+.auth-tab {
+    flex: 1;
+    background: #fff5f8;
+    color: var(--text-primary);
+    border: 1px solid var(--accent-pink-light);
+    border-radius: 12px;
+    padding: 8px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.auth-tab.active {
+    background: var(--accent-pink-light);
+    border-color: var(--heading-color);
+}
+
+.auth-success {
+    margin: 0 24px 24px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--income-bg);
+    color: var(--income-color);
+}
+
+.toggle-password, .modal-close, .close-btn {
+    min-width: 44px;
+    opacity: 1;
+}
+
+.modal-content {
+    max-height: calc(100dvh - 40px);
+    overscroll-behavior: contain;
+}
+
+.wallet-item {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    border: 2px solid var(--accent-pink-light);
+    border-radius: 16px;
+    background: white;
+    padding: 2px;
+    gap: 2px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.wallet-item:has(.wallet-tab.active) {
+    background: linear-gradient(135deg, var(--accent-pink) 0%, var(--accent-peach) 100%);
+    border-color: var(--accent-pink);
+}
+
+.wallet-item.active {
+    background: linear-gradient(135deg, var(--accent-pink) 0%, var(--accent-peach) 100%);
+    border-color: var(--accent-pink);
+}
+
+.wallet-item .wallet-tab {
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    padding: 8px 10px;
+    min-width: 0;
+    flex: 1 1 auto;
+    text-align: left;
+    overflow-wrap: anywhere;
+    box-shadow: none;
+    transform: none;
+    animation: none;
+}
+
+.wallet-item .wallet-tab.active {
+    font-weight: 800;
+}
+
+.wallet-item .wallet-tab:hover {
+    background: rgba(255, 194, 209, 0.3);
+}
+
+.wallet-drag-handle, .wallet-item .edit-wallet, .wallet-item .delete-wallet {
+    flex: 0 0 44px;
+    min-width: 44px;
+    margin: 0;
+    padding: 8px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 1em;
+}
+
+.wallet-drag-handle {
+    touch-action: none;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.wallet-drag-handle:hover, .wallet-item .edit-wallet:hover,
+.wallet-item .delete-wallet:hover {
+    background: rgba(255, 194, 209, 0.4);
+}
+
+.wallet-item.is-dragging {
+    opacity: 0.65;
+    border-style: dashed;
+}
+
+.wallet-item.is-dragging .wallet-drag-handle {
+    cursor: grabbing;
+}
+
+.wallet-item.is-drop-target {
+    border-color: var(--focus-color);
+    box-shadow: 0 0 0 3px rgba(123, 40, 80, 0.15);
+}
+
+.wallet-item.is-drop-target[data-drop-position="before"] {
+    border-left-width: 6px;
+}
+
+.wallet-item.is-drop-target[data-drop-position="after"] {
+    border-right-width: 6px;
+}
+
+.calendar-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+button.calendar-day {
+    width: 100%;
+    min-width: 0;
+    font-family: inherit;
+    color: var(--text-primary);
+    text-align: center;
+    line-height: 1.5;
+}
+
+.day-number {
+    font-size: 13px;
+}
+
+.day-income, .day-expense {
+    font-size: 10px;
+}
+
+.calendar-day.current-month.selected,
+.calendar-day.current-month.selected .day-number {
+    color: var(--text-primary);
+}
+
+.calendar-day.current-month.selected .day-income {
+    color: var(--income-color);
+}
+
+.calendar-day.current-month.selected .day-expense {
+    color: var(--expense-color);
+}
+
+.tag-list span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    padding: 2px 6px 2px 12px;
+}
+
+.tag-list .remove-tag {
+    min-width: 44px;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--expense-color);
+    opacity: 1;
+}
+
+.summary-card p, .report-total strong {
+    overflow-wrap: anywhere;
+}
+
+/* Filters and totals share the transaction list's reading order. */
+.report-filters, .report-period-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.report-filters {
+    margin-bottom: 18px;
+}
+
+.report-wallet {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    overflow-wrap: anywhere;
+}
+
+.report-reset {
+    align-self: end;
+}
+
+.report-field {
+    min-width: 0;
+}
+
+.report-field input, .report-field select {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 2px solid var(--border-color);
+    border-radius: 14px;
+    background-color: white;
+    color: var(--text-primary);
+    font-size: 16px;
+}
+
+.report-field select {
+    padding-right: 38px;
+}
+
+.report-period-fields {
+    grid-column: 1 / -1;
+}
+
+.report-filters button, .report-pagination button {
+    background: white;
+    color: var(--heading-color);
+    border: 2px solid var(--accent-pink-light);
+    border-radius: 12px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.report-totals {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 16px 0;
+}
+
+.report-total {
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 14px;
+    background: #f8f4ff;
+    overflow-wrap: anywhere;
+}
+
+.report-total strong, .report-total span {
+    display: block;
+}
+
+.report-total.income {
+    background: var(--income-bg);
+    color: var(--income-color);
+}
+
+.report-total.expense {
+    background: var(--expense-bg);
+    color: var(--expense-color);
+}
+
+.report-breakdown {
+    margin: 20px 0;
+}
+
+.report-category-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+    overflow-wrap: anywhere;
+}
+
+.report-category-row > :first-child {
+    flex: 1;
+    min-width: 0;
+}
+
+.report-category-row .income {
+    color: var(--income-color);
+}
+
+.report-category-row .expense {
+    color: var(--expense-color);
+}
+
+.report-results {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.report-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.report-empty {
+    text-align: center;
+    padding: 24px 12px;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 599px) {
+    .wallet-item {
+        flex: 1 1 100%;
+    }
+
+    .wallet-item.is-drop-target[data-drop-position="before"] {
+        border-left-width: 2px;
+        border-top-width: 6px;
+    }
+
+    .wallet-item.is-drop-target[data-drop-position="after"] {
+        border-right-width: 2px;
+        border-bottom-width: 6px;
+    }
+
+    .calendar-controls {
+        flex-wrap: wrap;
+    }
+
+    .calendar-controls h3 {
+        order: -1;
+        flex-basis: 100%;
+        text-align: center;
+    }
+
+    .calendar-controls button {
+        flex: 1;
+    }
+
+    .transaction-card {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .transaction-icon {
+        width: 36px;
+        height: 40px;
+        margin: 0;
+        align-self: start;
+    }
+
+    .transaction-description {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .transaction-meta span {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .transaction-amount {
+        grid-column: 2;
+        grid-row: 2;
+        margin: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .transaction-actions {
+        grid-column: 3;
+        grid-row: 1 / 3;
+        margin: 0;
+        align-self: center;
+    }
+
+    .modal-overlay {
+        padding: 12px;
+    }
+
+    .modal-content {
+        max-height: calc(100dvh - 24px);
+    }
+
+    .modal-content form, .modal-header {
+        padding: 16px;
+    }
+}
+
+@media (max-width: 420px) {
+    .summary-grid, .report-totals, .report-filters, .report-period-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .summary-card {
+        padding: 12px;
+    }
+
+    .summary-card h3 {
+        font-size: 0.8em;
+    }
+
+    .report-category-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }
