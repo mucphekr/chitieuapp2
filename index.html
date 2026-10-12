@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sổ Tay Chi Tiêu Gia Đình</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Ứng dụng theo dõi thu nhập và chi tiêu gia đình">
+    <meta name="theme-color" content="#4a90a4">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Chi Tiêu">
+    <meta name="application-name" content="Chi Tiêu">
+    <meta name="msapplication-TileColor" content="#1a1a2e">
+    <meta name="msapplication-config" content="none">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons cho các thiết bị -->
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
+    
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDK (Compat version - hoạt động khi mở trực tiếp) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <link rel="stylesheet" href="themes.css">
+</head>
+<body>
+
+    <!-- Login/Register Screen Overlay -->
+    <div id="auth-screen" class="auth-overlay">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h1>💰 Sổ Tay Tài Chính</h1>
+                <p id="auth-subtitle">🔐 Vui lòng đăng nhập để tiếp tục</p>
+            </div>
+            
+            <!-- Auth Tabs -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">🔓 Đăng Nhập</button>
+                <button class="auth-tab" data-tab="register">📝 Đăng Ký</button>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form">
+                <div class="form-group">
+                    <label for="login-email">📧 Email</label>
+                    <input type="email" id="login-email" placeholder="Nhập email của bạn" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">🔒 Mật khẩu</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="login-password" placeholder="Nhập mật khẩu" required>
+                        <button type="button" class="toggle-password" id="toggle-password-login" title="Hiện/Ẩn mật khẩu" aria-label="Hiện hoặc ẩn mật khẩu đăng nhập">
+                            <span class="eye-icon">👁️</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group remember-group">
+                    <label class="checkbox-label" for="remember-me">
+                        <input type="checkbox" id="remember-me" checked>
+                        <span class="checkmark"></span>
+                        💾 Ghi nhớ đăng nhập
+                    </label>
+                </div>
+                <button type="submit" class="auth-btn login-btn">🔓 Đăng Nhập</button>
+                <div class="forgot-password">
+                    <a href="#" id="forgot-password-link">🔑 Quên mật khẩu?</a>
+                </div>
+            </form>
+            
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form" style="display: none;">
+                <div class="form-group">
+                    <label for="register-name">👤 Tên hiển thị</label>
+                    <input type="text" id="register-name" placeholder="Nhập tên của bạn" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-email">📧 Email</label>
+                    <input type="email" id="register-email" placeholder="Nhập email của bạn" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">🔒 Mật khẩu</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="register-password" placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)" required minlength="6">
+                        <button type="button" class="toggle-password" id="toggle-password-register" title="Hiện/Ẩn mật khẩu" aria-label="Hiện hoặc ẩn mật khẩu đăng ký">
+                            <span class="eye-icon">👁️</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="register-confirm-password">🔒 Xác nhận mật khẩu</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="register-confirm-password" placeholder="Nhập lại mật khẩu" required minlength="6">
+                        <button type="button" class="toggle-password" id="toggle-password-confirm" title="Hiện/Ẩn mật khẩu" aria-label="Hiện hoặc ẩn xác nhận mật khẩu">
+                            <span class="eye-icon">👁️</span>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="auth-btn register-btn">📝 Đăng Ký Tài Khoản</button>
+            </form>
+            
+            <div id="auth-error" class="auth-error" role="alert" style="display: none;"></div>
+            <div id="auth-success" class="auth-success" role="status" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Main App Content (Hidden until logged in) -->
+    <div id="app-content" style="display: none;">
+
+    <header>
+        <div class="header-content">
+            <h1>💰 Sổ Tay Tài Chính Gia Đình</h1>
+            <p>Theo dõi Thu Nhập và Chi Tiêu hàng ngày</p>
+        </div>
+        <div class="user-info">
+            <span id="user-email"></span>
+            <button id="migrate-btn" class="migrate-btn" onclick="migrateOldData()" title="Di chuyển dữ liệu từ tài khoản cũ">📦 Nhập dữ liệu cũ</button>
+            <button id="logout-btn" class="logout-btn">🚪 Đăng xuất</button>
+            <div class="theme-switcher">
+                <button class="theme-switcher-btn" id="theme-switcher-btn" title="Đổi giao diện theo mùa" aria-label="Chọn theme">🌸</button>
+                <div class="theme-menu" id="theme-menu">
+                    <button class="theme-option" data-theme="spring">
+                        <span class="theme-option-icon">🌸</span>
+                        <span class="theme-option-label">봄 Mùa Xuân</span>
+                        <span class="theme-option-check">✓</span>
+                    </button>
+                    <button class="theme-option" data-theme="summer">
+                        <span class="theme-option-icon">☀️</span>
+                        <span class="theme-option-label">여름 Mùa Hè</span>
+                        <span class="theme-option-check">✓</span>
+                    </button>
+                    <button class="theme-option" data-theme="autumn">
+                        <span class="theme-option-icon">🍁</span>
+                        <span class="theme-option-label">가을 Mùa Thu</span>
+                        <span class="theme-option-check">✓</span>
+                    </button>
+                    <button class="theme-option" data-theme="winter">
+                        <span class="theme-option-icon">❄️</span>
+                        <span class="theme-option-label">겨울 Mùa Đông</span>
+                        <span class="theme-option-check">✓</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <p id="app-status" class="app-status" role="status" aria-live="polite"></p>
+
+        <!-- Wallet Selector Section -->
+        <section class="wallet-section">
+            <h2>👛 Chọn Ví Chi Tiêu</h2>
+            <p class="wallet-reorder-help" id="wallet-reorder-help">Kéo nút ↔ để đổi vị trí ví. Với bàn phím, chọn nút ↔ rồi dùng các phím mũi tên.</p>
+            <div class="wallet-tabs" id="wallet-tabs" role="list" aria-label="Danh sách ví" aria-describedby="wallet-reorder-help">
+                <!-- Các ví sẽ được render động từ Firebase -->
+            </div>
+            <p id="wallet-reorder-status" class="visually-hidden" role="status" aria-live="polite"></p>
+            <div class="wallet-info">
+                <span id="current-wallet-name">Đang xem: ---</span>
+            </div>
+            <!-- Thêm/Xóa ví -->
+            <div class="wallet-management">
+                <form id="add-wallet-form">
+                    <label class="visually-hidden" for="new-wallet-icon">Biểu tượng ví</label>
+                    <input type="text" id="new-wallet-icon" placeholder="👛" maxlength="16" style="width: 60px; text-align: center;">
+                    <label class="visually-hidden" for="new-wallet-name">Tên ví mới</label>
+                    <input type="text" id="new-wallet-name" placeholder="Tên ví mới" required>
+                    <button type="submit">+ Thêm</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="summary-section">
+            <h2>Tổng Quan Tài Chính</h2>
+            <p class="section-caption">Toàn bộ thời gian · Ví đang chọn</p>
+            <div class="summary-grid">
+                <div class="summary-card income-total">
+                    <h3>Tổng Thu Nhập</h3>
+                    <p id="total-income-summary">₩0</p>
+                </div>
+                <div class="summary-card expense-total">
+                    <h3>Tổng Chi Tiêu</h3>
+                    <p id="total-expense-summary">₩0</p>
+                </div>
+                <div class="summary-card net-balance">
+                    <h3>Số Dư Cuối</h3>
+                    <p id="net-balance-summary">₩0</p>
+                </div>
+            </div>
+        </section>
+        
+        <section class="calendar-section collapsible-section" id="calendar-section-collapsible">
+            <button class="section-toggle" aria-expanded="true" aria-controls="calendar-content" id="toggle-calendar">
+                <span class="section-toggle-title">📅 Lịch Theo Dõi Tháng</span>
+                <span class="section-toggle-icon" aria-hidden="true">▼</span>
+            </button>
+            <div class="section-collapsible-content" id="calendar-content">
+                <div class="calendar-controls">
+                    <button id="prev-month" aria-label="Tháng trước">←</button>
+                    <div class="calendar-jump">
+                        <select id="calendar-month-select" aria-label="Chọn tháng">
+                            <option value="0">Tháng 1</option>
+                            <option value="1">Tháng 2</option>
+                            <option value="2">Tháng 3</option>
+                            <option value="3">Tháng 4</option>
+                            <option value="4">Tháng 5</option>
+                            <option value="5">Tháng 6</option>
+                            <option value="6">Tháng 7</option>
+                            <option value="7">Tháng 8</option>
+                            <option value="8">Tháng 9</option>
+                            <option value="9">Tháng 10</option>
+                            <option value="10">Tháng 11</option>
+                            <option value="11">Tháng 12</option>
+                        </select>
+                        <select id="calendar-year-select" aria-label="Chọn năm">
+                            <!-- Years populated by JS -->
+                        </select>
+                        <button id="calendar-today-btn" class="calendar-today-btn" title="Về tháng hiện tại">📌 Hôm nay</button>
+                    </div>
+                    <button id="next-month" aria-label="Tháng sau">→</button>
+                </div>
+                <div id="calendar-grid" class="calendar-grid">
+                </div>
+            </div>
+        </section>
+
+        <!-- Add Transaction form is now a modal, triggered by FAB button -->
+
+        <section id="reports-section" class="reports-section collapsible-section" aria-labelledby="reports-title">
+            <button class="section-toggle" aria-expanded="false" aria-controls="reports-content" id="toggle-reports">
+                <span class="section-toggle-title">🔍 Tra cứu và Báo cáo</span>
+                <span class="section-toggle-icon" aria-hidden="true">▶</span>
+            </button>
+            <div class="section-collapsible-content collapsed" id="reports-content">
+                <!-- Reports content will be injected by reports.js -->
+            </div>
+        </section>
+
+        <section class="controls-section collapsible-section" id="controls-section-collapsible">
+            <button class="section-toggle" aria-expanded="false" aria-controls="controls-content" id="toggle-controls">
+                <span class="section-toggle-title">⚙️ Thiết Lập Danh Mục</span>
+                <span class="section-toggle-icon" aria-hidden="true">▶</span>
+            </button>
+            <div class="section-collapsible-content collapsed" id="controls-content">
+                <div class="control-container">
+                    <div>
+                        <h3>Thêm Danh Mục (Thu/Chi)</h3>
+                        <form id="add-category-form">
+                            <label class="visually-hidden" for="new-category">Tên danh mục mới</label>
+                            <input type="text" id="new-category" placeholder="Ví dụ: Lương, Tiền thuê nhà" required>
+                            <button type="submit">Thêm</button>
+                        </form>
+                        <div id="category-list" class="tag-list"></div>
+                    </div>
+
+                    <div>
+                        <h3>Thêm Nguồn (Tiền/Thu)</h3>
+                        <form id="add-source-form">
+                            <label class="visually-hidden" for="new-source">Tên nguồn tiền mới</label>
+                            <input type="text" id="new-source" placeholder="Ví dụ: Thẻ ATM, Nguồn phụ" required>
+                            <button type="submit">Thêm</button>
+                        </form>
+                        <div id="source-list" class="tag-list"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Selected Date Detail Section -->
+        <section class="list-section" id="transaction-detail-section" style="display: none;">
+            <div class="selected-date-info" id="selected-date-info">
+                <div class="selected-date-header">
+                    <span id="selected-date-text">📅 Ngày --</span>
+                    <button id="close-date-detail" class="close-btn" aria-label="Đóng chi tiết ngày">✕</button>
+                </div>
+                <div class="selected-date-summary" id="selected-date-summary"></div>
+            </div>
+            
+            <!-- Transaction List for Selected Date -->
+            <div class="transaction-list-container" id="transaction-list-container">
+                <div class="transaction-list" id="transaction-list">
+                    <!-- Các giao dịch sẽ được render ở đây -->
+                </div>
+            </div>
+        </section>
+        
+    </main>
+
+    <!-- Modal Chỉnh Sửa Ví -->
+    <div class="modal-overlay" id="edit-wallet-modal" role="dialog" aria-modal="true" aria-labelledby="edit-wallet-title" tabindex="-1" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="edit-wallet-title">✏️ Chỉnh Sửa Ví</h3>
+                <button class="modal-close" aria-label="Đóng chỉnh sửa ví" onclick="closeEditWalletModal()">✕</button>
+            </div>
+            <form id="edit-wallet-form">
+                <input type="hidden" id="edit-wallet-id">
+                <div class="form-group">
+                    <label for="edit-wallet-icon">Biểu tượng:</label>
+                    <input type="text" id="edit-wallet-icon" maxlength="16" style="width: 60px; text-align: center; font-size: 1.5em;">
+                </div>
+                <div class="form-group">
+                    <label for="edit-wallet-name">Tên Ví:</label>
+                    <input type="text" id="edit-wallet-name" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeEditWalletModal()">Hủy</button>
+                    <button type="submit" class="btn-save">💾 Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Chỉnh Sửa Giao Dịch -->
+    <div class="modal-overlay" id="edit-transaction-modal" role="dialog" aria-modal="true" aria-labelledby="edit-transaction-title" tabindex="-1" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="edit-transaction-title">✏️ Chỉnh Sửa Giao Dịch</h3>
+                <button class="modal-close" aria-label="Đóng chỉnh sửa giao dịch" onclick="closeEditTransactionModal()">✕</button>
+            </div>
+            <form id="edit-transaction-form">
+                <input type="hidden" id="edit-transaction-id">
+                <div class="form-group">
+                    <label for="edit-type">Loại Giao Dịch:</label>
+                    <select id="edit-type" required>
+                        <option value="expense">Chi Tiêu</option>
+                        <option value="income">Thu Nhập</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-date-day">Ngày:</label>
+                    <div class="date-picker-group">
+                        <select id="edit-date-day" aria-label="Ngày giao dịch" required></select>
+                        <span class="date-separator">/</span>
+                        <select id="edit-date-month" aria-label="Tháng giao dịch" required>
+                            <option value="1">01</option>
+                            <option value="2">02</option>
+                            <option value="3">03</option>
+                            <option value="4">04</option>
+                            <option value="5">05</option>
+                            <option value="6">06</option>
+                            <option value="7">07</option>
+                            <option value="8">08</option>
+                            <option value="9">09</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+                        <span class="date-separator">/</span>
+                        <select id="edit-date-year" aria-label="Năm giao dịch" required></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="edit-amount">Số Tiền:</label>
+                    <div class="currency-amount-group">
+                        <select id="edit-currency" aria-label="Loại tiền tệ">
+                            <option value="KRW">₩ KRW</option>
+                            <option value="VND">₫ VND</option>
+                        </select>
+                        <input type="number" id="edit-amount" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="edit-description">Mô Tả:</label>
+                    <input type="text" id="edit-description" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-category">Danh Mục:</label>
+                    <select id="edit-category" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-source">Nguồn Tiền:</label>
+                    <select id="edit-source" required></select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeEditTransactionModal()">Hủy</button>
+                    <button type="submit" class="btn-save">💾 Lưu</button>
+                </div>
+                <p id="edit-transaction-status" class="form-status" role="status" aria-live="polite"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Thêm Giao Dịch Mới -->
+    <div class="modal-overlay" id="add-transaction-modal" role="dialog" aria-modal="true" aria-labelledby="add-transaction-title" tabindex="-1" style="display: none;">
+        <div class="modal-content add-transaction-modal-content">
+            <div class="modal-header add-transaction-header">
+                <h3 id="add-transaction-title">📝 Thêm Giao Dịch Mới</h3>
+                <button class="modal-close" aria-label="Đóng form thêm giao dịch" onclick="closeAddTransactionModal()">✕</button>
+            </div>
+            <form id="add-transaction-form">
+                <div class="form-group">
+                    <label for="wallet">Ví Chi Tiêu:</label>
+                    <select id="wallet" required>
+                        <!-- Options sẽ được render động -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="type">Loại Giao Dịch:</label>
+                    <select id="type" required>
+                        <option value="expense">Chi Tiêu</option>
+                        <option value="income">Thu Nhập</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="date-day">Ngày:</label>
+                    <div class="date-picker-group">
+                        <select id="date-day" aria-label="Ngày giao dịch" required>
+                            <!-- Days will be populated by JS -->
+                        </select>
+                        <span class="date-separator">/</span>
+                        <select id="date-month" aria-label="Tháng giao dịch" required>
+                            <option value="1">01</option>
+                            <option value="2">02</option>
+                            <option value="3">03</option>
+                            <option value="4">04</option>
+                            <option value="5">05</option>
+                            <option value="6">06</option>
+                            <option value="7">07</option>
+                            <option value="8">08</option>
+                            <option value="9">09</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+                        <span class="date-separator">/</span>
+                        <select id="date-year" aria-label="Năm giao dịch" required>
+                            <!-- Years will be populated by JS -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="amount">Số Tiền:</label>
+                    <div class="currency-amount-group">
+                        <select id="currency" aria-label="Loại tiền tệ">
+                            <option value="KRW">₩ KRW</option>
+                            <option value="VND">₫ VND</option>
+                        </select>
+                        <input type="number" id="amount" placeholder="" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Mô Tả:</label>
+                    <input type="text" id="description" placeholder="" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Danh Mục (Thu/Chi):</label>
+                    <select id="category" required>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="source">Nguồn Tiền (Hoặc Nguồn Thu):</label>
+                    <select id="source" required>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeAddTransactionModal()">Hủy</button>
+                    <button type="submit" class="btn-save">📝 Ghi Lại Giao Dịch</button>
+                </div>
+                <p id="transaction-save-status" class="form-status" role="status" aria-live="polite"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- FAB Button - Thêm Giao Dịch Mới -->
+    <button class="fab-button fab-extended" id="fab-add-transaction" aria-label="Thêm giao dịch mới" title="Thêm giao dịch mới" style="display: none;">
+        <span class="fab-icon">＋</span>
+        <span class="fab-label">Thêm giao dịch</span>
+        <span class="fab-pulse"></span>
+    </button>
+
+    <footer>
+        <p>&copy; 2025 Ứng dụng theo dõi tài chính gia đình</p>
+        <p>Dữ liệu được lưu trữ và đồng bộ bằng Firebase Firestore.</p>
+    </footer>
+
+    </div><!-- End of #app-content -->
+
+    <script src="script.js"></script>
+    <script src="wallets.js"></script>
+    <script src="reports.js"></script>
+    
+    <!-- Đăng ký Service Worker cho PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(function(registration) {
+                        console.log('✅ Service Worker đã đăng ký thành công:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('❌ Service Worker đăng ký thất bại:', error);
+                    });
+            });
+        }
+        
+        // Xử lý sự kiện cài đặt PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            console.log('📱 App có thể được cài đặt!');
+        });
+    </script>
+</body>
+</html>

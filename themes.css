@@ -1,0 +1,620 @@
+/* ============================================
+   🌸☀️🍁❄️ THEMES — 4 MÙA HÀN QUỐC
+   ============================================ */
+
+/* === 🌸 MÙA XUÂN (봄) — Hoa Anh Đào === */
+[data-theme="spring"] {
+    --bg-primary: #fff5f8;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --accent-pink: #ff8fab;
+    --accent-pink-light: #ffc2d1;
+    --accent-mint: #98d8aa;
+    --accent-mint-light: #c5ebb8;
+    --accent-lavender: #c8b6ff;
+    --accent-peach: #ffcdb2;
+    --accent-yellow: #ffd670;
+    --text-primary: #5c4d4d;
+    --text-secondary: #6f5d62;
+    --text-muted: #786970;
+    --income-color: #236c40;
+    --income-bg: #e8f8ed;
+    --expense-color: #ac294b;
+    --expense-bg: #fff0f3;
+    --border-color: #f5e6e8;
+    --shadow-soft: rgba(255, 143, 171, 0.15);
+    --heading-color: #a13558;
+    --focus-color: #7b2850;
+    --header-gradient: linear-gradient(135deg, #ff8fab 0%, #ffc2d1 50%, #ffcdb2 100%);
+    --body-gradient: radial-gradient(circle at 10% 20%, rgba(255,143,171,0.1) 0%, transparent 40%),
+                     radial-gradient(circle at 90% 80%, rgba(200,182,255,0.1) 0%, transparent 40%);
+    --calendar-border: #ffd670;
+    --calendar-bg: linear-gradient(135deg, #fffbf0 0%, #fff5f8 100%);
+}
+
+/* === ☀️ MÙA HÈ (여름) — Biển & Mưa Nhiệt Đới === */
+[data-theme="summer"] {
+    --bg-primary: #e8f6ff;
+    --bg-secondary: #ffffff;
+    --bg-card: rgba(255, 255, 255, 0.92);
+    --accent-pink: #00b4d8;
+    --accent-pink-light: #90e0ef;
+    --accent-mint: #2dc653;
+    --accent-mint-light: #70e000;
+    --accent-lavender: #48bfe3;
+    --accent-peach: #ffd166;
+    --accent-yellow: #ffbe0b;
+    --text-primary: #1b3a4b;
+    --text-secondary: #2c5f6e;
+    --text-muted: #457b8d;
+    --income-color: #087f5b;
+    --income-bg: #d3f9d8;
+    --expense-color: #c92a2a;
+    --expense-bg: #ffe3e3;
+    --border-color: #cde8f0;
+    --shadow-soft: rgba(0, 180, 216, 0.15);
+    --heading-color: #0077b6;
+    --focus-color: #023e8a;
+    --header-gradient: linear-gradient(135deg, #0077b6 0%, #00b4d8 50%, #48bfe3 100%);
+    --body-gradient: radial-gradient(circle at 20% 30%, rgba(0,180,216,0.08) 0%, transparent 40%),
+                     radial-gradient(circle at 80% 70%, rgba(255,209,102,0.1) 0%, transparent 40%);
+    --calendar-border: #48bfe3;
+    --calendar-bg: linear-gradient(135deg, #f0faff 0%, #e8f6ff 100%);
+}
+
+[data-theme="summer"] header {
+    background: var(--header-gradient);
+}
+
+[data-theme="summer"] body {
+    background-image: var(--body-gradient);
+}
+
+[data-theme="summer"] .calendar-section {
+    background: var(--calendar-bg);
+    border-color: var(--calendar-border);
+}
+
+[data-theme="summer"] .calendar-section h2 {
+    color: #0077b6;
+    border-bottom-color: var(--calendar-border);
+}
+
+[data-theme="summer"] .day-header {
+    background: linear-gradient(135deg, #00b4d8 0%, #48bfe3 100%);
+}
+
+[data-theme="summer"] .fab-button {
+    background: linear-gradient(135deg, #00b4d8 0%, #48bfe3 100%);
+    box-shadow: 0 6px 24px rgba(0, 180, 216, 0.45);
+}
+
+[data-theme="summer"] .fab-pulse {
+    background: linear-gradient(135deg, #00b4d8 0%, #48bfe3 100%);
+}
+
+[data-theme="summer"] .auth-btn.login-btn,
+[data-theme="summer"] .auth-header {
+    background: linear-gradient(135deg, #0077b6 0%, #00b4d8 100%);
+}
+
+[data-theme="summer"] .calendar-jump select {
+    border-color: var(--calendar-border);
+    color: #0077b6;
+}
+
+[data-theme="summer"] .calendar-today-btn {
+    background: linear-gradient(135deg, #ffd166 0%, #ffbe0b 100%) !important;
+    border-color: #ffbe0b !important;
+    color: #664d03 !important;
+}
+
+[data-theme="summer"] body::before {
+    background: radial-gradient(circle, rgba(0,180,216,0.2) 0%, transparent 70%);
+}
+
+[data-theme="summer"] body::after {
+    background: radial-gradient(circle, rgba(255,209,102,0.2) 0%, transparent 70%);
+}
+
+/* === 🍁 MÙA THU (가을) — Lá Đỏ & Trời Xanh === */
+[data-theme="autumn"] {
+    --bg-primary: #fdf6ec;
+    --bg-secondary: #fffdf8;
+    --bg-card: rgba(255, 253, 248, 0.95);
+    --accent-pink: #e76f51;
+    --accent-pink-light: #f4a261;
+    --accent-mint: #2a9d8f;
+    --accent-mint-light: #76c893;
+    --accent-lavender: #bc6c25;
+    --accent-peach: #dda15e;
+    --accent-yellow: #e9c46a;
+    --text-primary: #3d2c2e;
+    --text-secondary: #5c3d2e;
+    --text-muted: #7d5a4f;
+    --income-color: #1b7a53;
+    --income-bg: #daf1e5;
+    --expense-color: #c0392b;
+    --expense-bg: #fde8e5;
+    --border-color: #edd9c0;
+    --shadow-soft: rgba(231, 111, 81, 0.15);
+    --heading-color: #bc4b27;
+    --focus-color: #7a2e14;
+    --header-gradient: linear-gradient(135deg, #e76f51 0%, #f4a261 50%, #e9c46a 100%);
+    --body-gradient: radial-gradient(circle at 15% 25%, rgba(231,111,81,0.08) 0%, transparent 40%),
+                     radial-gradient(circle at 85% 75%, rgba(233,196,106,0.1) 0%, transparent 40%);
+    --calendar-border: #e9c46a;
+    --calendar-bg: linear-gradient(135deg, #fdf6ec 0%, #fef3e2 100%);
+}
+
+[data-theme="autumn"] header {
+    background: var(--header-gradient);
+}
+
+[data-theme="autumn"] body {
+    background-image: var(--body-gradient);
+}
+
+[data-theme="autumn"] .calendar-section {
+    background: var(--calendar-bg);
+    border-color: var(--calendar-border);
+}
+
+[data-theme="autumn"] .calendar-section h2 {
+    color: #bc4b27;
+    border-bottom-color: var(--calendar-border);
+}
+
+[data-theme="autumn"] .day-header {
+    background: linear-gradient(135deg, #e76f51 0%, #f4a261 100%);
+}
+
+[data-theme="autumn"] .fab-button {
+    background: linear-gradient(135deg, #e76f51 0%, #f4a261 100%);
+    box-shadow: 0 6px 24px rgba(231, 111, 81, 0.45);
+}
+
+[data-theme="autumn"] .fab-pulse {
+    background: linear-gradient(135deg, #e76f51 0%, #f4a261 100%);
+}
+
+[data-theme="autumn"] .auth-btn.login-btn,
+[data-theme="autumn"] .auth-header {
+    background: linear-gradient(135deg, #e76f51 0%, #f4a261 100%);
+}
+
+[data-theme="autumn"] .calendar-jump select {
+    border-color: var(--calendar-border);
+    color: #bc4b27;
+}
+
+[data-theme="autumn"] .calendar-today-btn {
+    background: linear-gradient(135deg, #e9c46a 0%, #dda15e 100%) !important;
+    border-color: #e9c46a !important;
+    color: #5c3d2e !important;
+}
+
+[data-theme="autumn"] body::before {
+    background: radial-gradient(circle, rgba(231,111,81,0.2) 0%, transparent 70%);
+}
+
+[data-theme="autumn"] body::after {
+    background: radial-gradient(circle, rgba(233,196,106,0.2) 0%, transparent 70%);
+}
+
+/* === ❄️ MÙA ĐÔNG (겨울) — Tuyết Rơi Sáng Tông === */
+[data-theme="winter"] {
+    --bg-primary: #d4eaf7;
+    --bg-secondary: #e8f4fd;
+    --bg-card: rgba(255, 255, 255, 0.85);
+    --accent-pink: #5b9bd5;
+    --accent-pink-light: #a1c4e3;
+    --accent-mint: #6dbe8a;
+    --accent-mint-light: #8fd4a4;
+    --accent-lavender: #8ba8d4;
+    --accent-peach: #d4a76a;
+    --accent-yellow: #e8c44a;
+    --text-primary: #2c3e5a;
+    --text-secondary: #4a6580;
+    --text-muted: #6e8aa0;
+    --income-color: #2a8f5a;
+    --income-bg: #dff4e8;
+    --expense-color: #c0392b;
+    --expense-bg: #fde8e5;
+    --border-color: #bdd8ee;
+    --shadow-soft: rgba(91, 155, 213, 0.15);
+    --heading-color: #3a6fa0;
+    --focus-color: #2c5a8a;
+    --header-gradient: linear-gradient(135deg, #5b9bd5 0%, #85bde8 50%, #a1c4e3 100%);
+    --body-gradient: radial-gradient(circle at 15% 25%, rgba(91,155,213,0.08) 0%, transparent 40%),
+                     radial-gradient(circle at 85% 75%, rgba(200,220,240,0.1) 0%, transparent 40%);
+    --calendar-border: #a1c4e3;
+    --calendar-bg: linear-gradient(135deg, #e8f4fd 0%, #d4eaf7 100%);
+}
+
+[data-theme="winter"] header {
+    background: var(--header-gradient);
+}
+
+[data-theme="winter"] body {
+    background-color: #d4eaf7;
+    background-image:
+        var(--body-gradient),
+        linear-gradient(180deg, #c5e0f0 0%, #d4eaf7 30%, #ddeef9 70%, #c5e0f0 100%);
+}
+
+[data-theme="winter"] .calendar-section {
+    background: var(--calendar-bg);
+    border-color: var(--calendar-border);
+}
+
+[data-theme="winter"] .calendar-section h2 {
+    color: #3a6fa0;
+    border-bottom-color: var(--calendar-border);
+}
+
+[data-theme="winter"] .day-header {
+    background: linear-gradient(135deg, #5b9bd5 0%, #85bde8 100%);
+    color: white;
+}
+
+[data-theme="winter"] .calendar-day {
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="winter"] .calendar-day.current-month {
+    background: rgba(255,255,255,0.6);
+}
+
+[data-theme="winter"] .calendar-day.current-month:hover {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: #5b9bd5;
+}
+
+[data-theme="winter"] .fab-button {
+    background: linear-gradient(135deg, #5b9bd5 0%, #85bde8 100%);
+    box-shadow: 0 6px 24px rgba(91, 155, 213, 0.4);
+}
+
+[data-theme="winter"] .fab-pulse {
+    background: linear-gradient(135deg, #5b9bd5 0%, #85bde8 100%);
+}
+
+[data-theme="winter"] .auth-btn.login-btn {
+    background: linear-gradient(135deg, #5b9bd5 0%, #85bde8 100%);
+}
+
+[data-theme="winter"] .auth-header {
+    background: linear-gradient(135deg, #5b9bd5 0%, #85bde8 100%);
+}
+
+[data-theme="winter"] .calendar-jump select {
+    border-color: var(--calendar-border);
+    color: #3a6fa0;
+    background: rgba(255,255,255,0.8);
+}
+
+[data-theme="winter"] .calendar-today-btn {
+    background: linear-gradient(135deg, #e8c44a 0%, #d4a76a 100%) !important;
+    border-color: #e8c44a !important;
+    color: #5c4200 !important;
+}
+
+[data-theme="winter"] body::before {
+    background: radial-gradient(circle, rgba(91,155,213,0.12) 0%, transparent 70%);
+}
+
+[data-theme="winter"] body::after {
+    background: radial-gradient(circle, rgba(200,220,240,0.15) 0%, transparent 70%);
+}
+
+/* Winter frosted cards */
+[data-theme="winter"] section {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(191, 216, 238, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="winter"] .summary-card {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(191, 216, 238, 0.5);
+}
+
+[data-theme="winter"] input,
+[data-theme="winter"] select,
+[data-theme="winter"] textarea {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="winter"] .modal-content {
+    background: #eaf4fb;
+    border: 1px solid rgba(191, 216, 238, 0.5);
+}
+
+[data-theme="winter"] .auth-card {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(191, 216, 238, 0.4);
+}
+
+[data-theme="winter"] .section-toggle {
+    color: var(--text-primary);
+}
+
+[data-theme="winter"] .report-chart-section {
+    background: rgba(255, 255, 255, 0.75);
+    border-color: var(--border-color);
+}
+
+[data-theme="winter"] .pie-chart-hole {
+    background: rgba(232, 244, 253, 0.95);
+}
+
+[data-theme="winter"] .pie-legend-item {
+    background: rgba(255,255,255,0.5);
+}
+
+[data-theme="winter"] .transaction-card {
+    background: rgba(255,255,255,0.7);
+    border-color: var(--border-color);
+}
+
+[data-theme="winter"] footer {
+    background: linear-gradient(135deg, #5b9bd5 0%, #85bde8 100%);
+    color: white;
+}
+
+[data-theme="winter"] .wallet-item {
+    background: rgba(255,255,255,0.7);
+    border-color: var(--border-color);
+}
+
+[data-theme="winter"] .calendar-controls > button {
+    background: rgba(255,255,255,0.7);
+    color: #5b9bd5;
+    border-color: var(--border-color);
+}
+
+[data-theme="winter"] .calendar-controls > button:hover {
+    background: rgba(91,155,213,0.15);
+    border-color: #5b9bd5;
+}
+
+/* ============================================
+   🎭 THEME SWITCHER UI
+   ============================================ */
+
+.theme-switcher {
+    position: relative;
+    display: inline-block;
+}
+
+.theme-switcher-btn {
+    background: rgba(255, 255, 255, 0.25);
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 1.2em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.theme-switcher-btn:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1) rotate(15deg);
+}
+
+.theme-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--bg-card, white);
+    border-radius: 16px;
+    padding: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    display: none;
+    z-index: 1000;
+    min-width: 200px;
+    border: 1px solid var(--border-color);
+    animation: themeMenuIn 0.2s ease;
+}
+
+.theme-menu.show {
+    display: block;
+}
+
+@keyframes themeMenuIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.theme-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: none;
+    background: none;
+    width: 100%;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--text-primary);
+    transition: background 0.2s;
+}
+
+.theme-option:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.theme-option.active {
+    background: rgba(0, 0, 0, 0.08);
+    font-weight: 800;
+}
+
+[data-theme="winter"] .theme-menu {
+    background: #1a2540;
+    border-color: rgba(168, 216, 234, 0.2);
+}
+
+[data-theme="winter"] .theme-option {
+    color: #e8f4fd;
+}
+
+[data-theme="winter"] .theme-option:hover {
+    background: rgba(168, 216, 234, 0.1);
+}
+
+.theme-option-icon {
+    font-size: 1.3em;
+}
+
+.theme-option-label {
+    flex: 1;
+}
+
+.theme-option-check {
+    opacity: 0;
+}
+
+.theme-option.active .theme-option-check {
+    opacity: 1;
+}
+
+/* ============================================
+   ❄️ SNOWFALL PARTICLES (Winter Only)
+   ============================================ */
+
+.season-particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.snowflake {
+    position: absolute;
+    top: -10px;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 0 6px rgba(91, 155, 213, 0.4);
+    font-size: 1em;
+    animation: snowfall linear infinite;
+    pointer-events: none;
+    will-change: transform;
+}
+
+@keyframes snowfall {
+    0% {
+        transform: translateY(-10px) rotate(0deg) translateX(0);
+        opacity: 1;
+    }
+    25% {
+        transform: translateY(25vh) rotate(90deg) translateX(15px);
+    }
+    50% {
+        transform: translateY(50vh) rotate(180deg) translateX(-15px);
+        opacity: 0.8;
+    }
+    75% {
+        transform: translateY(75vh) rotate(270deg) translateX(10px);
+    }
+    100% {
+        transform: translateY(105vh) rotate(360deg) translateX(-5px);
+        opacity: 0.3;
+    }
+}
+
+/* 🌸 Cherry Blossom Petals (Spring) */
+.petal {
+    position: absolute;
+    top: -20px;
+    width: 12px;
+    height: 12px;
+    background: radial-gradient(ellipse, #ffb7c5 0%, #ff8fab 60%, transparent 100%);
+    border-radius: 50% 0 50% 0;
+    animation: petalFall linear infinite;
+    pointer-events: none;
+    opacity: 0.6;
+    will-change: transform;
+}
+
+@keyframes petalFall {
+    0% {
+        transform: translateY(-20px) rotate(0deg) translateX(0);
+        opacity: 0.7;
+    }
+    50% {
+        transform: translateY(50vh) rotate(180deg) translateX(30px);
+        opacity: 0.5;
+    }
+    100% {
+        transform: translateY(105vh) rotate(360deg) translateX(-20px);
+        opacity: 0;
+    }
+}
+
+/* 🍁 Falling Leaves (Autumn) */
+.leaf {
+    position: absolute;
+    top: -20px;
+    font-size: 1.2em;
+    animation: leafFall linear infinite;
+    pointer-events: none;
+    will-change: transform;
+}
+
+@keyframes leafFall {
+    0% {
+        transform: translateY(-20px) rotate(0deg) translateX(0);
+        opacity: 0.8;
+    }
+    33% {
+        transform: translateY(33vh) rotate(120deg) translateX(40px);
+    }
+    66% {
+        transform: translateY(66vh) rotate(240deg) translateX(-30px);
+        opacity: 0.6;
+    }
+    100% {
+        transform: translateY(105vh) rotate(360deg) translateX(20px);
+        opacity: 0;
+    }
+}
+
+/* ☀️ Sunshine Rays (Summer) */
+.sun-ray {
+    position: absolute;
+    top: -30px;
+    width: 2px;
+    height: 25px;
+    background: linear-gradient(180deg, rgba(255,209,102,0.5) 0%, transparent 100%);
+    animation: rayFall linear infinite;
+    pointer-events: none;
+    opacity: 0.3;
+    will-change: transform;
+}
+
+@keyframes rayFall {
+    0% {
+        transform: translateY(-30px);
+        opacity: 0.4;
+    }
+    100% {
+        transform: translateY(105vh);
+        opacity: 0;
+    }
+}

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Tạo Icons cho PWA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #fff;
+        }
+        h1 { color: #4a90a4; }
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .icon-item {
+            background: #2d3748;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .icon-item canvas {
+            border: 2px solid #4a90a4;
+            border-radius: 10px;
+        }
+        .icon-item p {
+            margin: 10px 0 5px;
+            font-size: 14px;
+        }
+        .icon-item a {
+            display: inline-block;
+            padding: 8px 15px;
+            background: #4a90a4;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .icon-item a:hover {
+            background: #3d7a8c;
+        }
+        .instructions {
+            background: #2d3748;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Tạo Icons cho PWA - Chi Tiêu App</h1>
+    
+    <div class="instructions">
+        <h3>📋 Hướng dẫn:</h3>
+        <ol>
+            <li>Nhấn vào từng nút "Tải xuống" để tải icon về</li>
+            <li>Di chuyển tất cả các file PNG vào thư mục <code>icons/</code></li>
+            <li>Sau đó app sẽ hoạt động như PWA!</li>
+        </ol>
+    </div>
+    
+    <div id="icon-grid" class="icon-grid"></div>
+
+    <script>
+        const sizes = [16, 32, 57, 60, 72, 76, 96, 114, 120, 128, 144, 152, 180, 192, 384, 512];
+        
+        // SVG icon content
+        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+            <defs>
+                <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4a90a4"/>
+                    <stop offset="100%" style="stop-color:#2d5a6b"/>
+                </linearGradient>
+            </defs>
+            <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+            <rect x="80" y="140" width="352" height="260" rx="30" fill="#1a1a2e"/>
+            <rect x="80" y="140" width="352" height="80" rx="30" fill="#f5a623"/>
+            <text x="256" y="340" font-family="Arial, sans-serif" font-size="140" font-weight="bold" fill="#f5a623" text-anchor="middle">₩</text>
+            <circle cx="380" cy="120" r="50" fill="#f5a623"/>
+            <text x="380" y="135" font-family="Arial, sans-serif" font-size="50" font-weight="bold" fill="#1a1a2e" text-anchor="middle">$</text>
+        </svg>`;
+        
+        const grid = document.getElementById('icon-grid');
+        
+        sizes.forEach(size => {
+            const item = document.createElement('div');
+            item.className = 'icon-item';
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.min(size, 128);
+            canvas.height = Math.min(size, 128);
+            
+            const img = new Image();
+            const blob = new Blob([svgContent], {type: 'image/svg+xml'});
+            const url = URL.createObjectURL(blob);
+            
+            img.onload = function() {
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
+                
+                // Create download link with full size
+                const fullCanvas = document.createElement('canvas');
+                fullCanvas.width = size;
+                fullCanvas.height = size;
+                const fullCtx = fullCanvas.getContext('2d');
+                fullCtx.drawImage(img, 0, 0, size, size);
+                
+                const link = document.createElement('a');
+                link.href = fullCanvas.toDataURL('image/png');
+                link.download = `icon-${size}x${size}.png`;
+                link.textContent = '⬇️ Tải xuống';
+                
+                const p = document.createElement('p');
+                p.textContent = `${size}x${size}`;
+                
+                item.appendChild(canvas);
+                item.appendChild(p);
+                item.appendChild(link);
+            };
+            
+            img.src = url;
+            grid.appendChild(item);
+        });
+    </script>
+</body>
+</html>
+
