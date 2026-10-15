@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sổ Tay Chi Tiêu Gia Đình</title>
     
     <!-- PWA Meta Tags -->
@@ -23,6 +23,9 @@
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
     <link rel="apple-touch-icon" href="icons/icon.svg">
     
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap">
     <link rel="stylesheet" href="style.css">
     <!-- Firebase SDK (Compat version - hoạt động khi mở trực tiếp) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -363,7 +366,7 @@
                             <option value="KRW">₩ KRW</option>
                             <option value="VND">₫ VND</option>
                         </select>
-                        <input type="number" id="edit-amount" required>
+                        <input type="number" id="edit-amount" inputmode="numeric" required>
                     </div>
                 </div>
                 <div class="form-group">
@@ -445,7 +448,7 @@
                             <option value="KRW">₩ KRW</option>
                             <option value="VND">₫ VND</option>
                         </select>
-                        <input type="number" id="amount" placeholder="" required>
+                        <input type="number" id="amount" inputmode="numeric" placeholder="" required>
                     </div>
                 </div>
 

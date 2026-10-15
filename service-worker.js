@@ -1,9 +1,10 @@
 // Service Worker cho Sổ Tay Chi Tiêu Gia Đình
-const CACHE_NAME = 'chitieu-v1.1';
+const CACHE_NAME = 'chitieu-v1.2';
 const urlsToCache = [
     '/',
     '/index.html',
     '/style.css',
+    '/themes.css',
     '/script.js',
     '/wallets.js',
     '/reports.js',

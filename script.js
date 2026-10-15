@@ -887,10 +887,25 @@ function closeAddTransactionModal() {
 window.closeAddTransactionModal = closeAddTransactionModal;
 window.openAddTransactionModal = openAddTransactionModal;
 
-
 // --- 5. HÀM LẮNG NGHE DỮ LIỆU THỜI GIAN THỰC ---
 var transactionsUnsubscribe = null;
 var settingsUnsubscribe = null;
+
+// Debounced render scheduler — prevents multiple rapid re-renders
+// when Firestore snapshots arrive in quick succession
+var _renderScheduled = false;
+function scheduleRender() {
+    if (_renderScheduled) return;
+    _renderScheduled = true;
+    requestAnimationFrame(function() {
+        _renderScheduled = false;
+        calculateSummary();
+        renderCalendar();
+        if (selectedDate) {
+            renderTransactionsForDate(selectedDate);
+        }
+    });
+}
 
 function teardownRealtimeListeners() {
     if (transactionsUnsubscribe) transactionsUnsubscribe();
@@ -923,13 +938,8 @@ function setupRealtimeListeners() {
         transactionsReady = true;
         if (settingsReady) dataLoadError = '';
         updateAppReadiness();
-        // Sau khi tải xong, vẽ lại giao diện
-        calculateSummary();
-        renderCalendar();
-        // Nếu đang chọn ngày, cập nhật lại danh sách giao dịch
-        if (selectedDate) {
-            renderTransactionsForDate(selectedDate);
-        }
+        // Debounced render — prevents jank from rapid snapshot updates
+        scheduleRender();
     }, function(error) {
         if (!isSessionCurrent(token)) return;
         transactionsReady = false;
@@ -968,13 +978,8 @@ function setupRealtimeListeners() {
             if (transactionsReady) dataLoadError = '';
             updateAppReadiness();
             
-            // Render lại khi có thay đổi
-            calculateSummary();
-            renderCalendar();
-            // Nếu đang chọn ngày, cập nhật lại danh sách giao dịch
-            if (selectedDate) {
-                renderTransactionsForDate(selectedDate);
-            }
+            // Debounced render — prevents jank from rapid snapshot updates
+            scheduleRender();
         } else {
             settingsReady = false;
             updateAppReadiness();
@@ -1989,7 +1994,10 @@ function createSeasonParticles(theme) {
     document.body.appendChild(particleContainer);
     
     var particleCount = 0;
+    var isMobile = window.innerWidth < 600;
     var maxParticles = theme === 'winter' ? 25 : theme === 'spring' ? 15 : theme === 'autumn' ? 12 : 8;
+    // Reduce particles on mobile for better performance
+    if (isMobile) maxParticles = Math.max(3, Math.floor(maxParticles / 3));
     
     function spawnParticle() {
         if (particleCount >= maxParticles) return;
@@ -2060,3 +2068,37 @@ document.addEventListener('DOMContentLoaded', initThemeSystem);
         document.documentElement.setAttribute('data-theme', saved);
     }
 })();
+
+// === MOBILE UX: Auto-scroll input into view when keyboard opens ===
+// Fixes the issue where mobile keyboard covers the input being focused
+document.addEventListener('focusin', function(e) {
+    var target = e.target;
+    if (!target || !target.matches('input, select, textarea')) return;
+    var modal = target.closest('.modal-overlay');
+    if (!modal || modal.style.display !== 'flex') return;
+    // Small delay to let keyboard finish appearing
+    setTimeout(function() {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 350);
+});
+
+// === PERFORMANCE: Pause particles when tab is hidden ===
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // Pause particle spawning
+        if (particleInterval) {
+            clearInterval(particleInterval);
+            particleInterval = null;
+        }
+    } else {
+        // Resume particle spawning if container exists
+        if (particleContainer && !particleInterval) {
+            var spawnRate = currentTheme === 'summer' ? 800 : 2000;
+            particleInterval = setInterval(function() {
+                createSeasonParticles(currentTheme);
+            }, spawnRate);
+            // Actually just recreate to keep it simple
+            createSeasonParticles(currentTheme);
+        }
+    }
+});

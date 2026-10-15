@@ -313,8 +313,14 @@
 [data-theme="winter"] section {
     background: rgba(255, 255, 255, 0.7);
     border-color: rgba(191, 216, 238, 0.6);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+}
+
+/* Only apply expensive backdrop-filter on larger screens */
+@media (min-width: 600px) {
+    [data-theme="winter"] section {
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
 }
 
 [data-theme="winter"] .summary-card {

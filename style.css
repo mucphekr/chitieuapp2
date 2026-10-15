@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+/* Google Fonts loaded via <link> in HTML for faster rendering */
 
 * {
     box-sizing: border-box;
@@ -41,6 +41,7 @@ body {
     padding: 0;
     line-height: 1.5;
     font-size: 14px;
+    -webkit-text-size-adjust: 100%;
 }
 
 /* Cute floating decorations */
@@ -559,6 +560,9 @@ label {
 input[type="date"],
 input[type="number"],
 input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
 select {
     width: 100%;
     padding: 12px 14px;
@@ -567,8 +571,11 @@ select {
     font-size: 16px;
     background: white;
     color: var(--text-primary);
-    transition: all 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
     font-family: 'Nunito', sans-serif;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
 input::placeholder {
@@ -1192,15 +1199,21 @@ html {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(255, 143, 171, 0.3);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(255, 143, 171, 0.35);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
     padding: 20px;
     animation: fadeIn 0.2s ease;
+}
+
+/* Only apply backdrop-filter on devices that can handle it well */
+@media (min-width: 600px) {
+    .modal-overlay {
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
 }
 
 @keyframes fadeIn {
@@ -2711,5 +2724,60 @@ footer {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+}
+
+/* === MOBILE PERFORMANCE OPTIMIZATIONS === */
+
+/* Pause particle animations when modal is open to free up GPU */
+body.modal-open .season-particles {
+    visibility: hidden;
+    animation-play-state: paused;
+}
+
+body.modal-open .season-particles * {
+    animation-play-state: paused !important;
+}
+
+/* Prevent double-tap zoom on interactive elements */
+button, a, input, select, textarea, label {
+    touch-action: manipulation;
+}
+
+/* Ensure consistent 16px font-size for ALL inputs on mobile (prevents iOS zoom) */
+@media (max-width: 599px) {
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="password"],
+    input[type="date"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="search"],
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
+
+    /* Reduce heavy transitions on mobile for smoother typing experience */
+    .modal-content,
+    .modal-overlay {
+        animation-duration: 0.15s !important;
+    }
+
+    /* Contain paint for modal to prevent full-page repaints */
+    .modal-content {
+        contain: layout style;
+    }
+}
+
+/* Reduce particle GPU overhead on low-end devices */
+@media (max-width: 599px) {
+    .season-particles {
+        opacity: 0.6;
+    }
+
+    .snowflake, .petal, .leaf, .sun-ray {
+        will-change: auto;
     }
 }
