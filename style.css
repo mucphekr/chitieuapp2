@@ -2781,3 +2781,87 @@ button, a, input, select, textarea, label {
         will-change: auto;
     }
 }
+
+/* === 💕 LOVE TOAST === */
+.love-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-120px);
+    z-index: 10000;
+    background: linear-gradient(135deg, #fff0f5 0%, #ffe8f0 50%, #fff5f0 100%);
+    border: 2px solid var(--accent-pink-light, #ffc2d1);
+    border-radius: 20px;
+    padding: 16px 24px;
+    box-shadow: 0 8px 32px rgba(255, 143, 171, 0.35),
+                0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: calc(100vw - 40px);
+    width: auto;
+    min-width: 280px;
+    opacity: 0;
+    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.4s ease;
+    pointer-events: none;
+    font-family: 'Nunito', sans-serif;
+}
+
+.love-toast-show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.love-toast-hide {
+    transform: translateX(-50%) translateY(-30px);
+    opacity: 0;
+    transition: transform 0.5s ease-in, opacity 0.4s ease;
+}
+
+.love-toast-emoji {
+    font-size: 2em;
+    line-height: 1;
+    flex-shrink: 0;
+    animation: loveEmojiBounce 1s ease-in-out infinite alternate;
+}
+
+@keyframes loveEmojiBounce {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.15); }
+}
+
+.love-toast-text {
+    font-size: 0.95em;
+    font-weight: 700;
+    color: #8b3a5c;
+    line-height: 1.4;
+    flex: 1;
+}
+
+.love-toast-hearts {
+    font-size: 1.2em;
+    flex-shrink: 0;
+    animation: loveHeartsFloat 2s ease-in-out infinite;
+}
+
+@keyframes loveHeartsFloat {
+    0%, 100% { transform: translateY(0); opacity: 0.8; }
+    50% { transform: translateY(-6px); opacity: 1; }
+}
+
+@media (max-width: 420px) {
+    .love-toast {
+        min-width: 0;
+        padding: 14px 18px;
+        gap: 10px;
+    }
+    
+    .love-toast-emoji {
+        font-size: 1.6em;
+    }
+    
+    .love-toast-text {
+        font-size: 0.88em;
+    }
+}

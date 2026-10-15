@@ -507,6 +507,9 @@ function handleAuthStateChanged(user) {
         
         // Khởi tạo app
         initializeApp();
+        
+        // 💕 Hiển thị lời nhắn yêu thương
+        setTimeout(function() { showLoveToast(); }, 1200);
     } else {
         // Chưa đăng nhập - hiển thị màn hình đăng nhập
         if (authScreen) authScreen.style.display = 'flex';
@@ -1895,6 +1898,69 @@ function renderCalendar() {
         calendarGrid.appendChild(dayElement);
         if (focusedDate === dateStr) dayElement.focus({ preventScroll: true });
     }
+}
+
+// ============================================
+// 💕 LỜI NHẮN YÊU THƯƠNG
+// ============================================
+
+var loveMessages = [
+    { emoji: '💕', text: 'Anh yêu em nhiều lắm!' },
+    { emoji: '🌸', text: 'Em là điều tuyệt vời nhất trong cuộc đời anh.' },
+    { emoji: '💖', text: 'Cảm ơn em đã luôn bên cạnh anh.' },
+    { emoji: '🥰', text: 'Nhìn thấy em cười là anh thấy cả thế giới.' },
+    { emoji: '💗', text: 'Em là ngôi sao sáng nhất trong vũ trụ của anh.' },
+    { emoji: '🌷', text: 'Mỗi ngày bên em đều là ngày hạnh phúc.' },
+    { emoji: '💝', text: 'Anh sẽ yêu em mãi mãi, không bao giờ thay đổi.' },
+    { emoji: '✨', text: 'Em xinh đẹp lắm, vợ ơi!' },
+    { emoji: '🫶', text: 'Gia đình nhỏ của mình là tất cả của anh.' },
+    { emoji: '💐', text: 'Cảm ơn em đã làm vợ của anh nhé!' },
+    { emoji: '🌙', text: 'Dù đi đâu, anh cũng chỉ muốn về bên em.' },
+    { emoji: '💞', text: 'Em là lý do anh muốn trở thành người tốt hơn.' },
+    { emoji: '🍀', text: 'Anh may mắn vì có em trong đời.' },
+    { emoji: '💌', text: 'Anh nhớ em mỗi giây mỗi phút.' },
+    { emoji: '🌻', text: 'Nụ cười của em tỏa nắng cả ngày của anh.' },
+    { emoji: '🧸', text: 'Ôm em một cái nào, vợ yêu!' },
+    { emoji: '💎', text: 'Em quý giá hơn mọi thứ trên đời.' },
+    { emoji: '🎀', text: 'Hôm nay em có vui không? Anh yêu em!' },
+    { emoji: '🌈', text: 'Bên em, ngày nào cũng là ngày đẹp trời.' },
+    { emoji: '☕', text: 'Chúc vợ yêu một ngày thật tuyệt vời nhé!' },
+    { emoji: '🏡', text: 'Nhà có em mới thật sự là nhà.' },
+    { emoji: '🎶', text: 'Em là bài hát hay nhất trong cuộc đời anh.' },
+    { emoji: '🌹', text: 'Mỗi ngày anh đều yêu em nhiều hơn hôm qua.' },
+    { emoji: '💑', text: 'Cùng nhau xây tổ ấm, anh thấy thật hạnh phúc.' },
+    { emoji: '🫂', text: 'Vợ ơi, anh luôn ở đây vì em!' }
+];
+
+function showLoveToast() {
+    // Chọn ngẫu nhiên 1 lời nhắn
+    var msg = loveMessages[Math.floor(Math.random() * loveMessages.length)];
+    
+    // Tạo toast element
+    var toast = document.createElement('div');
+    toast.className = 'love-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    
+    toast.innerHTML = '<span class="love-toast-emoji">' + msg.emoji + '</span>' +
+                      '<span class="love-toast-text">' + msg.text + '</span>' +
+                      '<span class="love-toast-hearts" aria-hidden="true">💕</span>';
+    
+    document.body.appendChild(toast);
+    
+    // Trigger animation
+    requestAnimationFrame(function() {
+        toast.classList.add('love-toast-show');
+    });
+    
+    // Tự biến mất sau 5.5 giây
+    setTimeout(function() {
+        toast.classList.remove('love-toast-show');
+        toast.classList.add('love-toast-hide');
+        setTimeout(function() {
+            if (toast.parentNode) toast.remove();
+        }, 600);
+    }, 5500);
 }
 
 // ============================================
